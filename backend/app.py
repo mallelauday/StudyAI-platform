@@ -113,6 +113,15 @@ def _register_blueprints(app: Flask) -> None:
 
     logger.info("Blueprints registered successfully")
 
+    logger.info("Registered Routes:")
+    for rule in app.url_map.iter_rules():
+        logger.info(
+            "Route: %s [%s] -> %s",
+            rule.rule,
+            ",".join(rule.methods),
+            rule.endpoint,
+        )
+
 
 # ── Error Handlers (SAFE JSON RESPONSES) ────────────────
 def _register_error_handlers(app: Flask) -> None:
@@ -175,8 +184,7 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(
-        host=Config.HOST,
-        port=Config.PORT,
-        debug=Config.DEBUG,
-        use_reloader=Config.DEBUG,
+        host="0.0.0.0",
+        port=5000,
+        debug=True
     )

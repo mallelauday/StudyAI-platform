@@ -1,6 +1,6 @@
 import { Calendar as CalendarIcon, CheckCircle, Circle, Loader2, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import api from '../../api';
+import api from '../../api/api';
 
 export function StudyPlanner() {
   const [studyPlan, setStudyPlan] = useState([]);

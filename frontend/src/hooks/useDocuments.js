@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import api from '../api';
+import api from '../api/api';
 
 export function useDocuments() {
   const [documents, setDocuments] = useState([]);

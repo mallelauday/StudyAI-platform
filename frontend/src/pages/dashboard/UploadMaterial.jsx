@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UploadCloud, FileText, CheckCircle, Loader2, AlertCircle, Trash2, RefreshCw } from 'lucide-react';
-import api from '../../api';
+import api from '../../api/api';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 

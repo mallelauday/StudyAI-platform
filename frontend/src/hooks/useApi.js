@@ -13,7 +13,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { buildRequestConfig, handleApiError } from '../utils/apiHelpers';
+import { apiClient, buildRequestConfig, handleApiError } from '../api/api';
 
 /**
  * @typedef {Object} UseApiOptions
@@ -121,7 +121,7 @@ export function useApi(url, method = 'GET', options = {}) {
             overrides
           );
 
-          const response = await axios(config);
+          const response = await apiClient(config);
           const result = response.data;
 
           if (isMountedRef.current) {

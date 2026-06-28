@@ -69,7 +69,11 @@ class Config:
     LOG_FOLDER: Path = BASE_DIR / os.getenv("LOG_FOLDER", "logs")
 
     # ── CORS ───────────────────────────────────────────────
-    CORS_ORIGINS: list = [
+    CORS_ORIGINS = [
+        origin.strip()
+        for origin in os.getenv("CORS_ORIGINS", "").split(",")
+        if origin.strip()
+    ] or [
         "http://localhost:3000",
         "http://localhost:5173",
         "http://127.0.0.1:3000",

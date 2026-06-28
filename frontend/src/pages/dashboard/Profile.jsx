@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { User, Bell, Shield, Moon, Sun, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
-import api from '../../api';
+import api from '../../api/api';
 
 export function Profile() {
   const { user, updateUser, logout } = useAuth();

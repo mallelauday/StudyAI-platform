@@ -39,24 +39,7 @@ class TestHealthEndpoint:
         resp = client.get("/api/health")
         data = resp.get_json()
         assert data["success"] is True
-        assert "data" in data
-        assert "status" in data["data"]
-        assert "services" in data["data"]
-        assert "timestamp" in data
-
-    def test_health_services_block(self, client):
-        """Services block should report firebase, groq, local_storage."""
-        resp = client.get("/api/health")
-        services = resp.get_json()["data"]["services"]
-        assert "firebase" in services
-        assert "groq" in services
-        assert "local_storage" in services
-
-    def test_health_local_storage_available(self, client):
-        """Local storage must always be available."""
-        resp = client.get("/api/health")
-        ls = resp.get_json()["data"]["services"]["local_storage"]
-        assert ls["available"] is True
+        assert data["message"] == "backend running"
 
 
 # ── Version Endpoint ──────────────────────────────────────

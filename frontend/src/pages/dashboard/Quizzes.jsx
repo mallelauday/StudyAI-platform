@@ -3,7 +3,7 @@ import {
   HelpCircle, Clock, AlertCircle, CheckCircle2,
   Loader2, Sparkles, BookOpen, Target,
 } from 'lucide-react';
-import api from '../../api';
+import api from '../../api/api';
 import { useDocuments } from '../../hooks/useDocuments';
 
 // ── helpers ───────────────────────────────────────────────

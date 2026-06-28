@@ -12,10 +12,8 @@ export const IS_DEV = import.meta.env.DEV;
 export const IS_PROD = import.meta.env.PROD;
 
 // ─── API ───────────────────────────────────────────────────────────────────────
-const envUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
-export const API_BASE_URL = envUrl 
-  ? (envUrl.endsWith("/api") ? envUrl : `${envUrl}/api`)
-  : "https://your-render-backend.onrender.com/api";
+import apiClient from '../api/api';
+export const API_BASE_URL = apiClient.defaults.baseURL;
 
 export const API_TIMEOUT_MS = 30_000; // 30 seconds
 

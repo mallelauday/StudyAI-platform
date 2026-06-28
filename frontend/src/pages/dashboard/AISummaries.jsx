@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Copy, Sparkles, Check, Loader2, AlertCircle, BookOpen, RefreshCw } from 'lucide-react';
-import api from '../../api';
+import api from '../../api/api';
 import { useDocuments } from '../../hooks/useDocuments';
 
 // ── helpers ───────────────────────────────────────────────

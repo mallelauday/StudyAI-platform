@@ -7,7 +7,7 @@ Provides:
     GET  /api/version   — App metadata
 """
 
-from flask import Blueprint
+from flask import Blueprint, jsonify
 from firebase.firebase_config import validate_connection as firebase_status, is_firebase_available
 from services.groq_service import GroqService
 from services.local_storage import LocalStorage
@@ -60,24 +60,10 @@ def health_check():
 
     # ── Overall health ─────────────────────────────────────
     # App is healthy as long as it can serve requests (storage is available)
-    is_healthy = local_storage_info.get("available", False) or firebase_info.get("connected", False)
-
-    data = {
-        "status": "healthy" if is_healthy else "degraded",
-        "timestamp": utc_now_iso(),
-        "services": {
-            "firebase": firebase_info,
-            "groq": groq_info,
-            "local_storage": local_storage_info,
-        },
-        "config": {
-            "env": Config.FLASK_ENV,
-            "use_local_storage": Config.USE_LOCAL_STORAGE,
-        },
-    }
-
-    logger.info("Health check: %s", data["status"])
-    return success_response(data=data, message="Health check complete")
+    return jsonify({
+        "success": True,
+        "message": "backend running"
+    })
 
 
 @health_bp.get("/version")
