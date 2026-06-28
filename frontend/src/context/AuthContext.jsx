@@ -34,7 +34,7 @@ import {
   useCallback,
   useRef,
 } from "react";
-import api, { tokenStore } from "../services/api";
+import api, { tokenStore } from "../api";
 
 // ── Context ──────────────────────────────────────────────────────────────────
 

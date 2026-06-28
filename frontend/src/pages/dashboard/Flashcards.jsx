@@ -1,6 +1,6 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Layers, ChevronLeft, ChevronRight, Shuffle, CheckCircle2, Loader2, AlertCircle, BookOpen, Sparkles } from 'lucide-react';
-import api from '../../services/api';
+import api from '../../api';
 import { useDocuments } from '../../hooks/useDocuments';
 
 // ── component ─────────────────────────────────────────────

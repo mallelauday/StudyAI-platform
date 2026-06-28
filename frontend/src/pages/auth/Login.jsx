@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Login Page
  * ----------
  * Uses the centralized Axios apiClient (services/api.js).
@@ -9,7 +9,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import api from "../../services/api";
+import api from "../../api";
 import {
   Mail,
   Lock,
@@ -74,7 +74,7 @@ export function Login() {
         }
       } else if (err.request) {
         // Request was sent but no response received — network/CORS issue
-        setError("Unable to reach the server. Make sure the backend is running on port 5000.");
+        setError("Unable to reach the server. Please verify the backend is running and check your connection.");
       } else {
         setError("An unexpected error occurred. Please try again.");
         console.error("[Login] Unexpected error:", err);

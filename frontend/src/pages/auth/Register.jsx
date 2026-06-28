@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Register Page
  * -------------
  * Migrated from direct Firebase SDK call to Axios /api/auth/register.
@@ -9,7 +9,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import api from "../../services/api";
+import api from "../../api";
 import {
   Mail,
   Lock,
@@ -91,7 +91,7 @@ export function Register() {
           setError(msg || `Unexpected error (HTTP ${status}).`);
         }
       } else if (err.request) {
-        setError("Unable to reach the server. Make sure the backend is running on port 5000.");
+        setError("Unable to reach the server. Please verify the backend is running and check your connection.");
       } else {
         setError("An unexpected error occurred. Please try again.");
         console.error("[Register] Unexpected error:", err);

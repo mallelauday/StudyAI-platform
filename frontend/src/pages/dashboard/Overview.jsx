@@ -1,7 +1,7 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { BookOpen, Target, Clock, TrendingUp, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
+import api from '../../api';
 import { useNavigate } from 'react-router-dom';
 
 function formatDate(iso) {
