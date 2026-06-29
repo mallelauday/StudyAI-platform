@@ -7,7 +7,14 @@
 import axios from "axios";
 
 // Dynamic API URL resolution with fallback and normalization
-let envApiUrl = import.meta.env.VITE_API_URL || "https://studyai-iz8i.onrender.com";
+const _rawApiUrl = import.meta.env.VITE_API_URL;
+if (!_rawApiUrl) {
+  console.warn(
+    "[StudyAI] VITE_API_URL is not set — falling back to the production Render backend. "
+    + "Set VITE_API_URL in your Vercel Dashboard environment variables and redeploy."
+  );
+}
+let envApiUrl = _rawApiUrl || "https://studyai-2mk0.onrender.com";
 if (envApiUrl && !envApiUrl.endsWith("/api") && !envApiUrl.endsWith("/api/")) {
     envApiUrl = envApiUrl.endsWith("/") ? `${envApiUrl}api` : `${envApiUrl}/api`;
 }
