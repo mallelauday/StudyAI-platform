@@ -40,6 +40,7 @@ from utils.jwt_utils import (
     InvalidTokenError,
 )
 from services.firebase_service import StorageRouter
+from firebase.firebase_config import is_firebase_available
 
 logger = get_logger(__name__)
 auth_bp = Blueprint("auth", __name__)
@@ -58,6 +59,9 @@ def register():
         { "email": "...", "password": "...", "display_name": "..." }
     """
     logger.info("REGISTER route hit")
+
+    if not is_firebase_available():
+        return error_response("Firebase credentials not configured on server", 500)
 
     body = request.get_json(silent=True)
     if not body:
@@ -117,6 +121,9 @@ def login():
     """
     logger.info("LOGIN route hit")
 
+    if not is_firebase_available():
+        return error_response("Firebase credentials not configured on server", 500)
+
     body = request.get_json(silent=True)
     if not body:
         return error_response("Request body must be valid JSON.", 400)
@@ -161,6 +168,9 @@ def refresh():
         }
     """
     logger.info("REFRESH route hit")
+
+    if not is_firebase_available():
+        return error_response("Firebase credentials not configured on server", 500)
 
     body = request.get_json(silent=True)
     if not body:
@@ -269,6 +279,9 @@ def logout():
     fails). The client MUST delete its stored tokens.
     """
     logger.info("LOGOUT route hit: uid=%s", g.user_id)
+
+    if not is_firebase_available():
+        return error_response("Firebase credentials not configured on server", 500)
 
     try:
         revoke_user_tokens(g.user_id)

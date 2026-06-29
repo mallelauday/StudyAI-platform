@@ -86,7 +86,7 @@ export function Register() {
         } else if (status === 400) {
           setError(msg || "Please check your input and try again.");
         } else if (status >= 500) {
-          setError("The server encountered an error. Please try again later.");
+          setError(msg || "The server encountered an error. Please try again later.");
         } else {
           setError(msg || `Unexpected error (HTTP ${status}).`);
         }

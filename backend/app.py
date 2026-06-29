@@ -20,6 +20,19 @@ Config.ensure_directories()
 
 logger = get_logger("studyai.app")
 
+# ── Startup environment variable validation ───────────────
+required_vars = [
+    "FIREBASE_PROJECT_ID",
+    "FIREBASE_PRIVATE_KEY",
+    "GROQ_API_KEY"
+]
+missing_vars = [var for var in required_vars if not os.getenv(var)]
+if missing_vars:
+    for var in missing_vars:
+        logger.error("❌ CRITICAL CONFIG ERROR: Missing required environment variable %s", var)
+else:
+    logger.info("✅ All required environment variables are present.")
+
 
 # ── Application Factory ───────────────────────────────────
 def create_app() -> Flask:

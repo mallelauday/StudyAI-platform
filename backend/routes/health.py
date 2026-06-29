@@ -30,37 +30,22 @@ def health_check():
     Liveness and readiness probe.
 
     Checks Firebase, Groq, and local storage availability.
-    Returns HTTP 200 always so that load-balancers can reach the process;
-    individual service status is reported in the JSON body.
     """
-    # ── Firebase status ────────────────────────────────────
-    fb_result = firebase_status()
-    firebase_info = {
-        "available": is_firebase_available(),
-        "connected": fb_result.get("connected", False),
-        "error": fb_result.get("error"),
-    }
-
-    # ── Local storage status ───────────────────────────────
+    fb_available = is_firebase_available()
+    groq_available = Config.is_groq_configured()
+    
+    # Database is available if we can initialize local storage or Firestore
+    db_available = False
     try:
         _store = LocalStorage("materials")
-        local_storage_info = {
-            "available": True,
-            "path": str(Config.STORAGE_FOLDER),
-            "doc_count": _store.count(),
-        }
-    except Exception as exc:
-        local_storage_info = {"available": False, "error": str(exc)}
+        db_available = True
+    except Exception:
+        db_available = False
 
-    # ── Groq status (lightweight — skip full validation on every call) ─
-    groq_info = {
-        "configured": Config.is_groq_configured(),
-        "model": Config.GROQ_MODEL,
-    }
-
-    # ── Overall health ─────────────────────────────────────
-    # App is healthy as long as it can serve requests (storage is available)
     return jsonify({
+        "firebase": fb_available,
+        "groq": groq_available,
+        "database": db_available,
         "success": True,
         "message": "backend running"
     })

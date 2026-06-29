@@ -34,6 +34,7 @@ class Config:
     GROQ_TEMPERATURE: float = float(os.getenv("GROQ_TEMPERATURE", 0.7))
 
     # ── Firebase ───────────────────────────────────────────
+    FIREBASE_TYPE: str = os.getenv("FIREBASE_TYPE", "service_account")
     FIREBASE_PROJECT_ID: str = os.getenv("FIREBASE_PROJECT_ID", "")
     FIREBASE_PRIVATE_KEY_ID: str = os.getenv("FIREBASE_PRIVATE_KEY_ID", "")
     FIREBASE_PRIVATE_KEY: str = os.getenv("FIREBASE_PRIVATE_KEY", "").replace("\\n", "\n")
@@ -45,11 +46,13 @@ class Config:
     FIREBASE_TOKEN_URI: str = os.getenv(
         "FIREBASE_TOKEN_URI", "https://oauth2.googleapis.com/token"
     )
-    FIREBASE_AUTH_PROVIDER_CERT_URL: str = os.getenv(
+    FIREBASE_AUTH_PROVIDER_X509_CERT_URL: str = os.getenv(
         "FIREBASE_AUTH_PROVIDER_X509_CERT_URL",
         "https://www.googleapis.com/oauth2/v1/certs",
     )
-    FIREBASE_CLIENT_CERT_URL: str = os.getenv("FIREBASE_CLIENT_X509_CERT_URL", "")
+    FIREBASE_AUTH_PROVIDER_CERT_URL: str = FIREBASE_AUTH_PROVIDER_X509_CERT_URL
+    FIREBASE_CLIENT_X509_CERT_URL: str = os.getenv("FIREBASE_CLIENT_X509_CERT_URL", "")
+    FIREBASE_CLIENT_CERT_URL: str = FIREBASE_CLIENT_X509_CERT_URL
     FIREBASE_WEB_API_KEY: str = os.getenv("FIREBASE_WEB_API_KEY", "")
 
     # ── File Upload ────────────────────────────────────────
