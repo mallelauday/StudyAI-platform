@@ -19,7 +19,7 @@ export function Profile() {
     return parts.slice(1).join(' ') || '';
   });
   const [email, setEmail] = useState(() => user?.email || '');
-  const [avatarUrl, setAvatarUrl] = useState(() => user?.profile_picture || user?.avatar_url || user?.avatar || '');
+  const [avatarUrl, setAvatarUrl] = useState(() => user?.profileImage || user?.profileImageUrl || user?.avatar || user?.profile_picture || user?.avatar_url || '');
 
   // Photo upload states
   const fileInputRef = useRef(null);
@@ -28,7 +28,7 @@ export function Profile() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
 
-  const currentPhoto = user?.profile_picture || user?.avatar_url || user?.avatar || '';
+  const currentPhoto = user?.profileImage || user?.profileImageUrl || user?.avatar || user?.profile_picture || user?.avatar_url || '';
 
   // Sync avatarUrl state with user context changes
   useEffect(() => {

@@ -2,9 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { ThemeToggle } from "../ThemeToggle";
-import { Menu, LogOut, User, Brain } from "lucide-react";
-import { getAvatarUrl } from "../../utils/avatarUtils";
-import { NotificationDropdown } from "./NotificationDropdown";
+import { Menu, LogOut, User, Brain, Bell } from "lucide-react";
 
 export function Topbar({ onToggleSidebar }) {
   const { user, logout } = useAuth();
@@ -41,7 +39,10 @@ export function Topbar({ onToggleSidebar }) {
 
       {/* Right side: Actions */}
       <div className="flex items-center gap-4">
-        <NotificationDropdown />
+        {/* Notifications (aesthetic only) */}
+        <button className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-border rounded-xl transition-colors">
+          <Bell size={20} />
+        </button>
 
         <ThemeToggle />
 
@@ -55,9 +56,10 @@ export function Topbar({ onToggleSidebar }) {
               aria-expanded={profileDropdownOpen}
             >
               <img
-                src={getAvatarUrl(user)}
+                src={user.profileImage || user.profileImageUrl || user.avatar || user.profile_picture || user.avatar_url || "/avatar-placeholder.png"}
                 alt="Avatar"
                 className="w-8 h-8 rounded-full border border-gray-200 dark:border-dark-border bg-white object-cover"
+                onError={(e) => { e.target.src = "/avatar-placeholder.png"; }}
               />
             </button>
 

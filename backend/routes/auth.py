@@ -330,12 +330,7 @@ def update_profile():
             avatar_url=avatar_url,
         )
 
-        user_dict = {
-            "uid": updated_user.uid,
-            "display_name": updated_user.display_name,
-            "email": updated_user.email,
-            "avatar_url": getattr(updated_user, "avatar_url", ""),
-        }
+        user_dict = updated_user.to_dict()
 
         logger.info("Profile update success for user %s", g.user_id)
         return jsonify({

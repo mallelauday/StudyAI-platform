@@ -39,7 +39,12 @@ class User:
         d = asdict(self)
         d["user_id"] = self.uid
         d["name"] = self.display_name
-        d["profile_picture"] = self.profile_picture or self.avatar_url
+        pic = self.profile_picture or self.avatar_url
+        d["profile_picture"] = pic
+        d["avatar_url"] = pic
+        d["profileImage"] = pic
+        d["profileImageUrl"] = pic
+        d["avatar"] = pic
         return d
 
     @classmethod
@@ -47,14 +52,23 @@ class User:
         """Reconstruct a User from a dict."""
         uid = data.get("uid") or data.get("user_id") or ""
         display_name = data.get("display_name") or data.get("name") or ""
-        profile_picture = data.get("profile_picture") or data.get("avatar_url") or ""
-        avatar_url = data.get("avatar_url") or data.get("profile_picture") or ""
+        
+        # Fallback chain: profileImage -> profileImageUrl -> avatar -> profile_picture -> avatar_url
+        pic = (
+            data.get("profileImage")
+            or data.get("profileImageUrl")
+            or data.get("avatar")
+            or data.get("profile_picture")
+            or data.get("avatar_url")
+            or ""
+        )
+        
         return cls(
             uid=uid,
             email=data.get("email", ""),
             display_name=display_name,
-            avatar_url=avatar_url,
-            profile_picture=profile_picture,
+            avatar_url=pic,
+            profile_picture=pic,
             created_at=data.get("created_at", utc_now_iso()),
             last_login_at=data.get("last_login_at", utc_now_iso()),
             role=data.get("role", "student"),

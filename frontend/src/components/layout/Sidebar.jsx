@@ -155,9 +155,9 @@ export function Sidebar({ isOpen, onClose }) {
           {({ isActive }) => (
             <>
               {/* Avatar */}
-              {user?.profile_picture || user?.avatar ? (
+              {user?.profileImage || user?.profileImageUrl || user?.avatar || user?.profile_picture || user?.avatar_url ? (
                 <img
-                  src={user.profile_picture || user.avatar}
+                  src={user.profileImage || user.profileImageUrl || user.avatar || user.profile_picture || user.avatar_url}
                   alt="Avatar"
                   className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-white/10 flex-shrink-0"
                   onError={(e) => { e.target.style.display = 'none'; }}

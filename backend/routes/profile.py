@@ -76,13 +76,22 @@ def upload_profile_photo():
         }
         user_doc["profile_picture"] = url_or_path
         user_doc["avatar_url"] = url_or_path
+        user_doc["profileImage"] = url_or_path
+        user_doc["profileImageUrl"] = url_or_path
+        user_doc["avatar"] = url_or_path
         user_router.create(user_id, user_doc)
     else:
         user_doc["profile_picture"] = url_or_path
         user_doc["avatar_url"] = url_or_path
+        user_doc["profileImage"] = url_or_path
+        user_doc["profileImageUrl"] = url_or_path
+        user_doc["avatar"] = url_or_path
         user_router.update(user_id, {
             "profile_picture": url_or_path,
-            "avatar_url": url_or_path
+            "avatar_url": url_or_path,
+            "profileImage": url_or_path,
+            "profileImageUrl": url_or_path,
+            "avatar": url_or_path
         })
 
     # Return updated user details
@@ -92,7 +101,10 @@ def upload_profile_photo():
         "display_name": user_doc.get("display_name") or user_doc.get("name") or g.token_payload.get("name", ""),
         "role": user_doc.get("role", g.user_role),
         "profile_picture": url_or_path,
-        "avatar_url": url_or_path
+        "avatar_url": url_or_path,
+        "profileImage": url_or_path,
+        "profileImageUrl": url_or_path,
+        "avatar": url_or_path
     }
 
     logger.info("Successfully updated profile photo for user %s to %s", user_id, url_or_path)
@@ -158,9 +170,15 @@ def remove_profile_photo():
     if user_doc:
         user_doc["profile_picture"] = ""
         user_doc["avatar_url"] = ""
+        user_doc["profileImage"] = ""
+        user_doc["profileImageUrl"] = ""
+        user_doc["avatar"] = ""
         user_router.update(user_id, {
             "profile_picture": "",
-            "avatar_url": ""
+            "avatar_url": "",
+            "profileImage": "",
+            "profileImageUrl": "",
+            "avatar": ""
         })
 
     # Return updated user details
@@ -170,7 +188,10 @@ def remove_profile_photo():
         "display_name": (user_doc or {}).get("display_name") or (user_doc or {}).get("name") or g.token_payload.get("name", ""),
         "role": (user_doc or {}).get("role", g.user_role),
         "profile_picture": "",
-        "avatar_url": ""
+        "avatar_url": "",
+        "profileImage": "",
+        "profileImageUrl": "",
+        "avatar": ""
     }
 
     logger.info("Successfully removed profile photo for user %s", user_id)

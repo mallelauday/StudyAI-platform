@@ -143,24 +143,114 @@ export function AuthProvider({ children }) {
   // ── Hydrate from localStorage on first mount ───────────────────────────────
 
   useEffect(() => {
-    try {
-      const storedUser    = localStorage.getItem("studyai_user");
-      const storedAccess  = tokenStore.getAccess();
-      const storedRefresh = tokenStore.getRefresh();
+    const initializeAuth = async () => {
+      try {
+        let storedAccess  = tokenStore.getAccess();
+        const storedRefresh = tokenStore.getRefresh();
 
-      if (storedUser && storedAccess) {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setAccessToken(storedAccess);
-        setRefreshToken(storedRefresh);
-        scheduleAutoLogout(storedAccess);
+        if (storedAccess) {
+          // Check if access token is expired or close to expiring (within 10s)
+          const expMs = getTokenExpMs(storedAccess);
+          const isExpired = expMs - Date.now() <= 10000;
+
+          if (isExpired && storedRefresh) {
+            console.info("[AuthContext] Access token expired on mount. Attempting silent refresh...");
+            try {
+              const response = await api.post("/auth/refresh", {
+                refresh_token: storedRefresh,
+              });
+              if (response.data?.success) {
+                const { access_token } = response.data.data;
+                storedAccess = access_token;
+                tokenStore.setAccess(access_token);
+                setAccessToken(access_token);
+                setRefreshToken(storedRefresh);
+                console.info("[AuthContext] Silent refresh succeeded on mount.");
+              } else {
+                throw new Error("Refresh response failed");
+              }
+            } catch (refreshErr) {
+              console.warn("[AuthContext] Silent refresh failed on mount:", refreshErr);
+              tokenStore.clearAll();
+              setUser(null);
+              setAccessToken(null);
+              setRefreshToken(null);
+              return;
+            }
+          } else if (isExpired) {
+            console.warn("[AuthContext] Access token expired and no refresh token available.");
+            tokenStore.clearAll();
+            setUser(null);
+            setAccessToken(null);
+            setRefreshToken(null);
+            return;
+          }
+
+          // Fetch the fresh profile from /auth/me to validate token and populate image fields
+          try {
+            console.info("[AuthContext] Validating token and fetching latest user profile from /auth/me...");
+            const meResponse = await api.get("/auth/me", {
+              headers: { Authorization: `Bearer ${storedAccess}` }
+            });
+            if (meResponse.data?.success) {
+              const userData = meResponse.data.data?.user ?? meResponse.data.user;
+              
+              const normalized = { ...userData };
+              if (normalized.display_name && !normalized.name) {
+                normalized.name = normalized.display_name;
+              }
+              const rawPhoto =
+                normalized.profileImage ||
+                normalized.profileImageUrl ||
+                normalized.avatar ||
+                normalized.profile_picture ||
+                normalized.avatar_url ||
+                "";
+              const resolvedPhoto = resolvePhotoUrl(rawPhoto);
+              normalized.profileImage = resolvedPhoto;
+              normalized.profileImageUrl = resolvedPhoto;
+              normalized.avatar = resolvedPhoto;
+              normalized.profile_picture = resolvedPhoto;
+              normalized.avatar_url = resolvedPhoto;
+
+              setUser(normalized);
+              setAccessToken(storedAccess);
+              setRefreshToken(storedRefresh);
+              tokenStore.setUser(normalized);
+              scheduleAutoLogout(storedAccess);
+              console.info("[AuthContext] Token validated and profile loaded successfully.");
+              return;
+            }
+          } catch (meErr) {
+            console.error("[AuthContext] Fetching user profile failed on mount:", meErr);
+            if (meErr.response?.status === 401) {
+              tokenStore.clearAll();
+              setUser(null);
+              setAccessToken(null);
+              setRefreshToken(null);
+              return;
+            }
+          }
+
+          // Fallback to local storage hydration if offline or network error
+          const storedUser = localStorage.getItem("studyai_user");
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+            setAccessToken(storedAccess);
+            setRefreshToken(storedRefresh);
+            scheduleAutoLogout(storedAccess);
+          }
+        }
+      } catch (err) {
+        console.warn("[AuthContext] Hydration failed — clearing storage:", err);
+        tokenStore.clearAll();
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.warn("[AuthContext] Hydration failed — clearing storage:", err);
-      tokenStore.clearAll();
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    initializeAuth();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -184,11 +274,19 @@ export function AuthProvider({ children }) {
       if (normalized.display_name && !normalized.name) {
         normalized.name = normalized.display_name;
       }
-      const rawPhoto = normalized.profile_picture || normalized.avatar_url || normalized.avatar || "";
+      const rawPhoto =
+        normalized.profileImage ||
+        normalized.profileImageUrl ||
+        normalized.avatar ||
+        normalized.profile_picture ||
+        normalized.avatar_url ||
+        "";
       const resolvedPhoto = resolvePhotoUrl(rawPhoto);
+      normalized.profileImage = resolvedPhoto;
+      normalized.profileImageUrl = resolvedPhoto;
+      normalized.avatar = resolvedPhoto;
       normalized.profile_picture = resolvedPhoto;
       normalized.avatar_url = resolvedPhoto;
-      normalized.avatar = resolvedPhoto;
 
       setUser(normalized);
       setAccessToken(newAccessToken);
@@ -225,11 +323,19 @@ export function AuthProvider({ children }) {
     if (normalized.display_name && !normalized.name) {
       normalized.name = normalized.display_name;
     }
-    const rawPhoto = normalized.profile_picture || normalized.avatar_url || normalized.avatar || "";
+    const rawPhoto =
+      normalized.profileImage ||
+      normalized.profileImageUrl ||
+      normalized.avatar ||
+      normalized.profile_picture ||
+      normalized.avatar_url ||
+      "";
     const resolvedPhoto = resolvePhotoUrl(rawPhoto);
+    normalized.profileImage = resolvedPhoto;
+    normalized.profileImageUrl = resolvedPhoto;
+    normalized.avatar = resolvedPhoto;
     normalized.profile_picture = resolvedPhoto;
     normalized.avatar_url = resolvedPhoto;
-    normalized.avatar = resolvedPhoto;
 
     setUser(normalized);
     tokenStore.setUser(normalized);

@@ -137,28 +137,33 @@ def login_user(email: str, password: str) -> dict:
         user_doc    = user_router.get(uid)
         role        = (user_doc or {}).get("role", "student")
 
-        # ── Update last_login_at ───────────────────────────
-        now_iso = utc_now_iso()
         if user_doc:
-            user_router.update(uid, {"last_login_at": now_iso})
+            user_obj = User.from_dict(user_doc)
+        else:
+            user_obj = User(
+                uid=uid,
+                email=user_email,
+                display_name=display_name or "",
+                role=role
+            )
+            user_router.create(uid, user_obj.to_dict())
+
+        # ── Update last_login_at ───────────────────────────
+        user_obj.last_login_at = utc_now_iso()
+        user_router.update(uid, {"last_login_at": user_obj.last_login_at})
 
         # ── Issue Flask-native JWT tokens ─────────────────
         access_token  = create_access_token(
             uid=uid,
             email=user_email,
             role=role,
-            display_name=display_name,
+            display_name=user_obj.display_name,
         )
         refresh_token = create_refresh_token(uid=uid)
 
         logger.info("User logged in successfully: uid=%s role=%s", uid, role)
         return {
-            "user": {
-                "uid":          uid,
-                "email":        user_email,
-                "display_name": display_name,
-                "role":         role,
-            },
+            "user": user_obj.to_dict(),
             "access_token":  access_token,
             "refresh_token": refresh_token,
             "expires_in":    Config.JWT_ACCESS_EXPIRES_MINUTES * 60,
