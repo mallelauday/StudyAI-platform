@@ -75,6 +75,25 @@ function claimsFromToken(token) {
   }
 }
 
+/**
+ * Resolves relative photo URLs to the absolute backend URL,
+ * and appends a cache-busting query parameter.
+ */
+function resolvePhotoUrl(photoUrl) {
+  if (!photoUrl) return "";
+  let resolved = photoUrl;
+  if (photoUrl.startsWith("/api/")) {
+    const baseUrl = api.defaults.baseURL || "";
+    const baseWithoutApi = baseUrl.endsWith("/api") ? baseUrl.slice(0, -4) : baseUrl;
+    resolved = `${baseWithoutApi}${photoUrl}`;
+  }
+  if (resolved.includes("/profile/photo/")) {
+    const separator = resolved.includes("?") ? "&" : "?";
+    resolved = `${resolved}${separator}cb=${Date.now()}`;
+  }
+  return resolved;
+}
+
 // ── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }) {
@@ -165,9 +184,11 @@ export function AuthProvider({ children }) {
       if (normalized.display_name && !normalized.name) {
         normalized.name = normalized.display_name;
       }
-      if (normalized.avatar_url && !normalized.avatar) {
-        normalized.avatar = normalized.avatar_url;
-      }
+      const rawPhoto = normalized.profile_picture || normalized.avatar_url || normalized.avatar || "";
+      const resolvedPhoto = resolvePhotoUrl(rawPhoto);
+      normalized.profile_picture = resolvedPhoto;
+      normalized.avatar_url = resolvedPhoto;
+      normalized.avatar = resolvedPhoto;
 
       setUser(normalized);
       setAccessToken(newAccessToken);
@@ -204,9 +225,11 @@ export function AuthProvider({ children }) {
     if (normalized.display_name && !normalized.name) {
       normalized.name = normalized.display_name;
     }
-    if (normalized.avatar_url && !normalized.avatar) {
-      normalized.avatar = normalized.avatar_url;
-    }
+    const rawPhoto = normalized.profile_picture || normalized.avatar_url || normalized.avatar || "";
+    const resolvedPhoto = resolvePhotoUrl(rawPhoto);
+    normalized.profile_picture = resolvedPhoto;
+    normalized.avatar_url = resolvedPhoto;
+    normalized.avatar = resolvedPhoto;
 
     setUser(normalized);
     tokenStore.setUser(normalized);

@@ -21,6 +21,7 @@ from collections import defaultdict
 from utils.logger import get_logger
 from utils.helpers import utc_now_iso
 from services.firebase_service import StorageRouter
+from firebase.firebase_config import is_firebase_available, validate_connection
 
 logger = get_logger(__name__)
 
@@ -37,6 +38,14 @@ def get_analytics(user_id: str) -> dict:
     """
     logger.info("Building analytics for user: %s", user_id)
 
+    # ── Debug: Firebase connection status ─────────────────
+    fb_status = is_firebase_available()
+    conn      = validate_connection()
+    logger.info(
+        "[Analytics] Firebase available: %s | Connection: %s",
+        fb_status, conn,
+    )
+
     # ── Fetch all relevant data ───────────────────────────
     materials   = StorageRouter("materials").filter_by_user(user_id)
     summaries   = StorageRouter("summaries").filter_by_user(user_id)
@@ -45,6 +54,15 @@ def get_analytics(user_id: str) -> dict:
     results     = StorageRouter("results").filter_by_user(user_id)
     schedules   = StorageRouter("schedules").filter_by_user(user_id)
     weak_topics = StorageRouter("weak_topics").filter_by_user(user_id)
+
+    # ── Debug: document counts per collection ─────────────
+    logger.info(
+        "[Analytics] Counts for user %s — materials:%d summaries:%d "
+        "flashcards:%d quizzes:%d results:%d schedules:%d weak_topics:%d",
+        user_id,
+        len(materials), len(summaries), len(flashcards),
+        len(quizzes),   len(results),   len(schedules), len(weak_topics),
+    )
 
     # ── Core counts ───────────────────────────────────────
     docs_uploaded   = len(materials)
@@ -130,9 +148,10 @@ def get_analytics(user_id: str) -> dict:
     }
 
     logger.info(
-        "Analytics built for %s: %d docs, %d quizzes, avg score %.1f%%",
-        user_id, docs_uploaded, quizzes_taken, avg_score,
+        "[Analytics] Built for %s: %d docs, %d quizzes, avg score %.1f%%, streak %d days",
+        user_id, docs_uploaded, quizzes_taken, avg_score, study_streak,
     )
+    logger.debug("[Analytics] Final payload: %s", analytics)
     return analytics
 
 

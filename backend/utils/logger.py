@@ -11,12 +11,12 @@ import logging
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from config import get_config
+import os
 
-Config = get_config()
+LOG_FOLDER = Path(os.getenv('LOG_FOLDER','logs'))
 
 # ── Colour codes for terminal output ─────────────────────
-_COLOURS = {
+_COLORS = {
     "DEBUG":    "\033[36m",   # Cyan
     "INFO":     "\033[32m",   # Green
     "WARNING":  "\033[33m",   # Yellow
@@ -33,8 +33,8 @@ class _ColourFormatter(logging.Formatter):
     DATE_FMT = "%Y-%m-%d %H:%M:%S"
 
     def format(self, record: logging.LogRecord) -> str:
-        colour = _COLOURS.get(record.levelname, _COLOURS["RESET"])
-        reset = _COLOURS["RESET"]
+        colour = _COLORS.get(record.levelname, _COLORS["RESET"])
+        reset = _COLORS["RESET"]
         record.levelname = f"{colour}{record.levelname}{reset}"
         formatter = logging.Formatter(self.FMT, datefmt=self.DATE_FMT)
         return formatter.format(record)
@@ -56,7 +56,9 @@ def get_logger(name: str = "studyai") -> logging.Logger:
     if logger.handlers:
         return logger
 
-    level = getattr(logging, Config.LOG_LEVEL.upper(), logging.DEBUG)
+    # Resolve logging configuration from environment variables
+    log_level = os.getenv("LOG_LEVEL", "DEBUG").upper()
+    level = getattr(logging, log_level, logging.DEBUG)
     logger.setLevel(level)
 
     # ── Console handler (coloured, UTF-8 safe on Windows) ──
@@ -76,8 +78,8 @@ def get_logger(name: str = "studyai") -> logging.Logger:
     logger.addHandler(console_handler)
 
     # ── File handler (rotating, plain text) ───────────────
-    Config.LOG_FOLDER.mkdir(parents=True, exist_ok=True)
-    log_file: Path = Config.LOG_FOLDER / "studyai.log"
+    LOG_FOLDER.mkdir(parents=True, exist_ok=True)
+    log_file: Path = LOG_FOLDER / "studyai.log"
 
     file_handler = RotatingFileHandler(
         log_file,

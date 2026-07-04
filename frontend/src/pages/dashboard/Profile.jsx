@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { User, Bell, Shield, Moon, Sun, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { User, Bell, Shield, Moon, Sun, Loader2, AlertCircle, CheckCircle, Camera, Trash2, Upload } from 'lucide-react';
 import api from '../../api/api';
-import { STUDY_AVATARS, getAvatarUrl } from '../../utils/avatarUtils';
 
 export function Profile() {
   const { user, updateUser, logout } = useAuth();
@@ -20,11 +19,167 @@ export function Profile() {
     return parts.slice(1).join(' ') || '';
   });
   const [email, setEmail] = useState(() => user?.email || '');
-  const [avatarUrl, setAvatarUrl] = useState(() => getAvatarUrl(user));
+  const [avatarUrl, setAvatarUrl] = useState(() => user?.profile_picture || user?.avatar_url || user?.avatar || '');
+
+  // Photo upload states
+  const fileInputRef = useRef(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const currentPhoto = user?.profile_picture || user?.avatar_url || user?.avatar || '';
+
+  // Sync avatarUrl state with user context changes
+  useEffect(() => {
+    setAvatarUrl(currentPhoto);
+  }, [user, currentPhoto]);
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // ── Photo Upload Handlers ──────────────────────────────────
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handlePhotoChange = (e) => {
+    setError('');
+    setSuccess('');
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate format
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Invalid file format. Please upload a JPG, PNG, or WEBP image.');
+      return;
+    }
+
+    // Validate size (5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setError('File size exceeds the 5 MB limit.');
+      return;
+    }
+
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handlePhotoUpload = async () => {
+    if (!selectedFile) return;
+    setError('');
+    setSuccess('');
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const res = await api.post('/profile/upload-photo', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          setUploadProgress(percentCompleted);
+        },
+      });
+
+      if (res.data?.success) {
+        updateUser(res.data.user);
+        
+        // Debugging logs requested by user
+        console.log("Uploaded image URL:", res.data.data?.profile_picture);
+        console.log("Current user:", res.data.user);
+        console.log("Avatar src:", res.data.user?.profile_picture);
+
+        setSuccess('Profile picture updated successfully!');
+        setSelectedFile(null);
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl);
+          setPreviewUrl(null);
+        }
+      } else {
+        setError(res.data?.error || 'Failed to upload photo.');
+      }
+    } catch (err) {
+      console.error('Photo upload failed:', err);
+      setError(err.response?.data?.error || 'Failed to upload profile picture.');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handlePhotoRemove = async () => {
+    setError('');
+    setSuccess('');
+    setIsUploading(true);
+
+    try {
+      const res = await api.delete('/profile/photo');
+      if (res.data?.success) {
+        updateUser(res.data.user);
+        setSuccess('Profile picture removed successfully!');
+        setSelectedFile(null);
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl);
+          setPreviewUrl(null);
+        }
+      } else {
+        setError(res.data?.error || 'Failed to remove photo.');
+      }
+    } catch (err) {
+      console.error('Photo removal failed:', err);
+      setError(err.response?.data?.error || 'Failed to remove profile picture.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleCancelPreview = () => {
+    setSelectedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  };
+
+  const renderAvatar = () => {
+    if (previewUrl || currentPhoto) {
+      let srcUrl = previewUrl || currentPhoto;
+      if (srcUrl.startsWith('/api/')) {
+        const baseUrl = api.defaults.baseURL || '';
+        const baseWithoutApi = baseUrl.endsWith('/api') ? baseUrl.slice(0, -4) : baseUrl;
+        srcUrl = `${baseWithoutApi}${srcUrl}`;
+      }
+      return (
+        <img 
+          src={srcUrl} 
+          alt="Profile" 
+          className="w-full h-full rounded-full object-cover" 
+          onError={(e) => { e.target.src = "/favicon.svg"; }}
+        />
+      );
+    }
+    const initials = (user?.display_name || user?.name || "Student")
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+    return (
+      <div className="w-full h-full rounded-full bg-gradient-to-tr from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold text-3xl shadow-inner">
+        {initials || <User size={48} />}
+      </div>
+    );
+  };
 
   const handleSaveChanges = async (e) => {
     e.preventDefault();
@@ -84,23 +239,91 @@ export function Profile() {
           
           <div className="glass-card p-6">
             <h2 className="text-lg font-bold mb-6">Public Profile</h2>
-            <div className="flex items-center gap-6 mb-8">
-              <div className="relative">
-                <img 
-                  src={avatarUrl} 
-                  alt="Profile" 
-                  className="w-20 h-20 rounded-full border-4 border-gray-100 dark:border-dark-border bg-white object-cover" 
-                  onError={(e) => { e.target.src = getAvatarUrl(user); }}
-                />
-                <div className="absolute bottom-0 right-0 p-1.5 bg-primary-600 text-white rounded-full border-2 border-white dark:border-dark-card">
-                  <User size={14} />
+            <div className="flex flex-col sm:flex-row items-center gap-6 mb-8 p-4 bg-gray-50 dark:bg-dark-bg/20 rounded-2xl border border-gray-100 dark:border-dark-border/40">
+              <div className="relative group cursor-pointer" onClick={triggerFileInput}>
+                <div className="w-[120px] h-[120px] rounded-full border-4 border-white dark:border-dark-card shadow-lg overflow-hidden bg-gray-200 dark:bg-gray-800 transition-transform duration-300 hover:scale-105">
+                  {renderAvatar()}
                 </div>
+                
+                {/* Upload progress overlay */}
+                {isUploading && (
+                  <div className="absolute inset-0 bg-black/60 rounded-full flex flex-col items-center justify-center text-white text-xs font-semibold">
+                    <Loader2 size={24} className="animate-spin mb-1 text-primary-400" />
+                    <span>{uploadProgress}%</span>
+                  </div>
+                )}
+
+                {/* Edit Overlay on Hover */}
+                {!isUploading && (
+                  <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center text-white">
+                    <Camera size={24} className="transform scale-90 group-hover:scale-100 transition-transform duration-300" />
+                  </div>
+                )}
+                
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handlePhotoChange} 
+                  accept="image/jpeg,image/jpg,image/png,image/webp" 
+                  className="hidden" 
+                />
               </div>
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-white text-lg">
-                  {user?.display_name || user?.name || "Student"}
-                </h3>
-                <p className="text-gray-500 text-sm">{user?.email}</p>
+
+              <div className="flex-1 text-center sm:text-left space-y-3">
+                <div>
+                  <h3 className="font-bold text-gray-900 dark:text-white text-lg">
+                    {user?.display_name || user?.name || "Student"}
+                  </h3>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-2">{user?.email}</p>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                  {previewUrl ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handlePhotoUpload}
+                        disabled={isUploading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-xl text-xs font-medium transition-all shadow-md shadow-green-500/10"
+                      >
+                        <Upload size={14} /> Apply Photo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelPreview}
+                        disabled={isUploading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-500 hover:bg-gray-600 disabled:opacity-50 text-white rounded-xl text-xs font-medium transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={triggerFileInput}
+                        disabled={isUploading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-xl text-xs font-medium transition-all shadow-md shadow-primary-500/10"
+                      >
+                        <Camera size={14} /> Change Photo
+                      </button>
+                      
+                      {currentPhoto && (
+                        <button
+                          type="button"
+                          onClick={handlePhotoRemove}
+                          disabled={isUploading}
+                          className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 dark:border-red-800/60 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 dark:text-red-400 rounded-xl text-xs font-medium transition-all"
+                        >
+                          <Trash2 size={14} /> Remove
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+                <p className="text-xxs text-gray-400 dark:text-gray-500">
+                  Supports JPG, JPEG, PNG, or WEBP. Max size 5 MB.
+                </p>
               </div>
             </div>
 
@@ -154,28 +377,14 @@ export function Profile() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-3 text-gray-700 dark:text-gray-300">Choose Avatar</label>
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
-                  {STUDY_AVATARS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      title={preset.label}
-                      onClick={() => setAvatarUrl(preset.url)}
-                      className={`relative rounded-xl p-1 transition-all hover:scale-105 ${
-                        avatarUrl === preset.url
-                          ? 'ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-dark-card'
-                          : 'ring-1 ring-gray-200 dark:ring-dark-border'
-                      }`}
-                    >
-                      <img
-                        src={preset.url}
-                        alt={preset.label}
-                        className="w-full aspect-square rounded-lg bg-white object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Avatar Image URL</label>
+                <input 
+                  type="text" 
+                  value={avatarUrl} 
+                  onChange={e => setAvatarUrl(e.target.value)}
+                  placeholder="https://example.com/avatar.jpg"
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-dark-bg/50 border border-gray-200 dark:border-dark-border rounded-xl focus:ring-2 focus:ring-primary-500 outline-none" 
+                />
               </div>
 
               <button 

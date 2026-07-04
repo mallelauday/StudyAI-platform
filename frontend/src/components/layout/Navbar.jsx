@@ -5,7 +5,6 @@ import { useAuth } from "../../context/AuthContext";
 import { Sun, Moon, Brain, LogOut, User, Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "../ThemeToggle";
-import { getAvatarUrl } from "../../utils/avatarUtils";
 
 export function Navbar() {
   const { theme, toggleTheme } = useTheme();
@@ -78,11 +77,18 @@ export function Navbar() {
 
                   <div className="relative group">
                     <button className="flex items-center gap-2">
-                      <img
-                        src={getAvatarUrl(user)}
-                        alt="Avatar"
-                        className="w-8 h-8 rounded-full object-cover bg-white"
-                      />
+                      {user.avatar ? (
+                        <img
+                          src={user.avatar}
+                          alt="Avatar"
+                          className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-white/10 bg-white"
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                          {(user.display_name || user.name || "Student").split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
                     </button>
 
                     <div className="absolute right-0 w-48 mt-2 py-2 bg-white dark:bg-dark-card rounded-xl shadow-xl border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">

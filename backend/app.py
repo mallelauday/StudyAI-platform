@@ -19,7 +19,6 @@ Config.ensure_directories()
 
 logger = get_logger("studyai.app")
 
-
 def _validate_startup_config() -> None:
     """Log configuration status at startup."""
     if not Config.is_groq_configured():
@@ -29,13 +28,17 @@ def _validate_startup_config() -> None:
     if is_firebase_available():
         logger.info("Groq and Firebase configuration look good.")
     elif Config.USE_LOCAL_STORAGE:
-        logger.info(
-            "Groq configured. Firebase unavailable — using local JSON storage."
-        )
+    missing = []
+    if not Config.is_groq_configured():
+        missing.append("GROQ_API_KEY")
+    if not Config.has_firebase_credentials() and not Config.USE_LOCAL_STORAGE:
+        missing.append("Firebase credentials or USE_LOCAL_STORAGE=True")
+
+    if missing:
+        for item in missing:
+            logger.error("❌ CRITICAL CONFIG ERROR: Missing %s", item)
     else:
-        logger.error(
-            "Firebase credentials missing and USE_LOCAL_STORAGE is disabled."
-        )
+        logger.info("✅ All required configuration is present.")
 
 
 # ── Application Factory ───────────────────────────────────
@@ -56,6 +59,7 @@ def create_app() -> Flask:
 
     try:
         init_firebase()
+<<<<<<< HEAD
         ensure_collections()
         if is_firebase_available():
             logger.info("Firebase initialized successfully")
@@ -63,6 +67,17 @@ def create_app() -> Flask:
             logger.warning("Firebase unavailable — continuing with local storage")
         else:
             logger.error("Firebase init failed and local storage is disabled")
+=======
+        if is_firebase_available():
+            ensure_collections()
+            logger.info("Firebase initialized successfully")
+        else:
+            logger.warning(
+                "Firebase not configured — running with local storage only. "
+                "Set FIREBASE_PRIVATE_KEY and FIREBASE_CLIENT_EMAIL in .env, "
+                "or place serviceAccountKey.json in the backend folder."
+            )
+>>>>>>> 44fa296 (feat: fix Firebase integration, remove mock analytics, add profile service and improve dashboard UI)
     except Exception as e:
         logger.error("Firebase init failed: %s", str(e))
 
@@ -99,6 +114,7 @@ def _register_blueprints(app: Flask) -> None:
     from routes.schedule import schedule_bp
     from routes.analytics import analytics_bp
     from routes.export import export_bp
+    from routes.profile import profile_bp
 
     app.register_blueprint(health_bp, url_prefix="/api")
     app.register_blueprint(auth_bp, url_prefix="/api")
@@ -109,6 +125,7 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(schedule_bp, url_prefix="/api")
     app.register_blueprint(analytics_bp, url_prefix="/api")
     app.register_blueprint(export_bp, url_prefix="/api")
+    app.register_blueprint(profile_bp, url_prefix="/api")
 
     logger.info("Blueprints registered successfully")
 

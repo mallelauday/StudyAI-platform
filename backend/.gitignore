@@ -5,6 +5,7 @@
 # Environment & secrets
 .env
 *.env
+serviceAccountKey.json
 
 # Python
 __pycache__/

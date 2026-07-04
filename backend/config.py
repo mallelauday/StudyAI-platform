@@ -7,8 +7,12 @@ class used throughout the application.
 """
 
 import os
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 # ── Resolve project root and load .env ────────────────────
 BASE_DIR = Path(__file__).resolve().parent
@@ -25,7 +29,7 @@ class Config:
 
     # ── Server ─────────────────────────────────────────────
     HOST: str = os.getenv("HOST", "0.0.0.0")
-    PORT: int = int(os.environ.get("PORT", 10000))
+    PORT: int = int(os.getenv("PORT", 5000))
 
     # ── Groq AI ────────────────────────────────────────────
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
@@ -57,6 +61,7 @@ class Config:
 
     # ── File Upload ────────────────────────────────────────
     UPLOAD_FOLDER: Path = BASE_DIR / os.getenv("UPLOAD_FOLDER", "uploads")
+    PROFILE_PHOTOS_FOLDER: Path = BASE_DIR / os.getenv("UPLOAD_FOLDER", "uploads") / "profile_photos"
     MAX_CONTENT_LENGTH_MB: int = int(os.getenv("MAX_CONTENT_LENGTH_MB", 16))
     MAX_CONTENT_LENGTH: int = MAX_CONTENT_LENGTH_MB * 1024 * 1024  # Flask uses bytes
     ALLOWED_EXTENSIONS: set = set(
@@ -115,13 +120,38 @@ class Config:
     APP_VERSION: str = "1.0.0"
 
     @classmethod
+    def has_firebase_credentials(cls) -> bool:
+        """Return True if Firebase can init from .env vars or a JSON key file."""
+        if cls.FIREBASE_PROJECT_ID and cls.FIREBASE_PRIVATE_KEY and cls.FIREBASE_CLIENT_EMAIL:
+            return True
+        credentials_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
+        if credentials_path and Path(credentials_path).is_file():
+            return True
+        return (BASE_DIR / "serviceAccountKey.json").is_file()
+
+    @classmethod
     def is_firebase_configured(cls) -> bool:
         """Return True if all required Firebase credentials are present."""
-        return all([
-            cls.FIREBASE_PROJECT_ID,
-            cls.FIREBASE_PRIVATE_KEY,
-            cls.FIREBASE_CLIENT_EMAIL,
-        ])
+        # Debug logs
+        logger.debug(f".env loaded from: {BASE_DIR / '.env'}")
+        logger.debug(f"Current working directory: {os.getcwd()}")
+        logger.debug(f"FIREBASE_PROJECT_ID set: {bool(cls.FIREBASE_PROJECT_ID)}")
+        logger.debug(f"FIREBASE_CLIENT_EMAIL set: {bool(cls.FIREBASE_CLIENT_EMAIL)}")
+        logger.debug(f"FIREBASE_PRIVATE_KEY set: {bool(cls.FIREBASE_PRIVATE_KEY)}")
+        if cls.FIREBASE_PRIVATE_KEY:
+            logger.debug(f"FIREBASE_PRIVATE_KEY length: {len(cls.FIREBASE_PRIVATE_KEY)}")
+        # Validate presence
+        missing = []
+        if not cls.FIREBASE_PROJECT_ID:
+            missing.append("FIREBASE_PROJECT_ID")
+        if not cls.FIREBASE_CLIENT_EMAIL:
+            missing.append("FIREBASE_CLIENT_EMAIL")
+        if not cls.FIREBASE_PRIVATE_KEY:
+            missing.append("FIREBASE_PRIVATE_KEY")
+        if missing:
+            logger.error(f"Firebase is not fully configured. Missing: {', '.join(missing)}")
+            return False
+        return True
 
     @classmethod
     def is_groq_configured(cls) -> bool:
@@ -131,8 +161,9 @@ class Config:
     @classmethod
     def ensure_directories(cls) -> None:
         """Create required directories if they do not exist."""
-        for directory in [cls.UPLOAD_FOLDER, cls.STORAGE_FOLDER, cls.LOG_FOLDER]:
+        for directory in [cls.UPLOAD_FOLDER, cls.STORAGE_FOLDER, cls.LOG_FOLDER, cls.PROFILE_PHOTOS_FOLDER]:
             directory.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Checked directory: {directory}")
 
 
 class DevelopmentConfig(Config):

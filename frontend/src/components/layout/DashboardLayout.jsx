@@ -47,7 +47,7 @@ export function DashboardLayout() {
             flex-1
             w-full
             min-h-[calc(100vh-4rem)]
-            lg:pl-72
+            lg:pl-[270px]
             p-4 sm:p-6 lg:p-8
             transition-all duration-300 ease-in-out
             overflow-x-auto

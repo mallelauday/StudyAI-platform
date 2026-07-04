@@ -270,6 +270,7 @@ def update_user_profile(
         fb_auth_update["email"] = email
     if avatar_url is not None:
         update_data["avatar_url"] = avatar_url
+        update_data["profile_picture"] = avatar_url
         # avatar_url is not a standard Firebase Auth field (unless photo_url is used),
         # but we can set photo_url on Firebase Auth to align
         fb_auth_update["photo_url"] = avatar_url
