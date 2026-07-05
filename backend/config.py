@@ -25,7 +25,7 @@ class Config:
 
     # ── Server ─────────────────────────────────────────────
     HOST: str = os.getenv("HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("PORT", 5000))
+    PORT: int = int(os.environ.get("PORT", 10000))
 
     # ── Groq AI ────────────────────────────────────────────
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
