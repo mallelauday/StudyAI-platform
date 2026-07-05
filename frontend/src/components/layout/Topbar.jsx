@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { ThemeToggle } from "../ThemeToggle";
-import { Menu, LogOut, User, Brain, Bell } from "lucide-react";
+import { Menu, LogOut, User, Brain } from "lucide-react";
+import { getAvatarUrl } from "../../utils/avatarUtils";
+import { NotificationDropdown } from "./NotificationDropdown";
 
 export function Topbar({ onToggleSidebar }) {
   const { user, logout } = useAuth();
@@ -39,10 +41,7 @@ export function Topbar({ onToggleSidebar }) {
 
       {/* Right side: Actions */}
       <div className="flex items-center gap-4">
-        {/* Notifications (aesthetic only) */}
-        <button className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-border rounded-xl transition-colors">
-          <Bell size={20} />
-        </button>
+        <NotificationDropdown />
 
         <ThemeToggle />
 
@@ -56,9 +55,9 @@ export function Topbar({ onToggleSidebar }) {
               aria-expanded={profileDropdownOpen}
             >
               <img
-                src={user.avatar || "/avatar-placeholder.png"}
+                src={getAvatarUrl(user)}
                 alt="Avatar"
-                className="w-8 h-8 rounded-full border border-gray-200 dark:border-dark-border bg-white"
+                className="w-8 h-8 rounded-full border border-gray-200 dark:border-dark-border bg-white object-cover"
               />
             </button>
 

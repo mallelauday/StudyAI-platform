@@ -59,9 +59,19 @@ def get_analytics(user_id: str) -> dict:
 
     # ── Flashcard mastery ────────────────────────────────
     fc_mastered = sum(
-        1 for fc in flashcards if fc.get("mastered") is True
+        fc.get("mastered_count", 0)
+        for fc in flashcards
     )
-    fc_total = sum(len(fc.get("cards", [])) for fc in flashcards)
+    if fc_mastered == 0:
+        fc_mastered = sum(
+            1 for fc in flashcards
+            for card in fc.get("cards", [])
+            if card.get("mastered") is True
+        )
+    fc_total = sum(
+        fc.get("total_cards", len(fc.get("cards", [])))
+        for fc in flashcards
+    )
 
     # ── Weak topics (aggregated across all results) ───────
     topic_scores: dict[str, list[float]] = defaultdict(list)

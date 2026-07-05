@@ -5,6 +5,14 @@ import {
 } from 'lucide-react';
 import api from '../../api/api';
 import { useDocuments } from '../../hooks/useDocuments';
+import { useDocFromQuery } from '../../hooks/useDocFromQuery';
+import { SectionBackButton } from '../../components/shared/SectionBackButton';
+import {
+  isOptionCorrect,
+  getGradedForQuestion,
+  formatStudentAnswer,
+  QUIZ_TYPE_OPTIONS,
+} from '../../utils/quizHelpers';
 
 // ── helpers ───────────────────────────────────────────────
 
@@ -38,6 +46,7 @@ export function Quizzes() {
   // Generator controls
   const [selectedDocId, setSelectedDocId] = useState('');
   const [difficulty,    setDifficulty]    = useState('medium');
+  const [quizType,      setQuizType]      = useState('mcq');
   const [count,         setCount]         = useState(10);
   const [isGenerating,  setIsGenerating]  = useState(false);
   const [genError,      setGenError]      = useState('');
@@ -47,11 +56,13 @@ export function Quizzes() {
   const [activeQuiz,    setActiveQuiz]    = useState(null);  // full quiz doc with questions
   const [currentQ,      setCurrentQ]      = useState(0);
   const [answers,       setAnswers]       = useState({});    // { question_id: selected_option_index }
+  const [textAnswers,   setTextAnswers]   = useState({});    // { question_id: string } for short answer
   const [timeLeft,      setTimeLeft]      = useState(0);
   const [isSubmitting,  setIsSubmitting]  = useState(false);
   const [result,        setResult]        = useState(null);  // graded result from backend
   const [submitError,   setSubmitError]   = useState('');
   const [isSubmitted,   setIsSubmitted]   = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
 
   // ── fetch existing quizzes ─────────────────────────────
   const fetchQuizzes = useCallback(async () => {
@@ -68,6 +79,12 @@ export function Quizzes() {
   }, []);
 
   useEffect(() => { fetchQuizzes(); }, [fetchQuizzes]);
+
+  useDocFromQuery(setSelectedDocId, documents);
+
+  useEffect(() => {
+    if (selectedDocId) setShowGenerator(true);
+  }, [selectedDocId]);
 
   // ── countdown timer ────────────────────────────────────
   useEffect(() => {
@@ -93,7 +110,7 @@ export function Quizzes() {
         document_id: selectedDocId,
         count:       Number(count),
         difficulty,
-        quiz_type:   'mcq',
+        quiz_type:   quizType,
       });
       const payload = res.data?.data;
       // Load questions and start session immediately
@@ -133,10 +150,24 @@ export function Quizzes() {
     setActiveQuiz(quizDoc);
     setCurrentQ(0);
     setAnswers({});
+    setTextAnswers({});
     setTimeLeft(quizDoc.questions.length * 60); // 1 min per question
     setIsSubmitted(false);
+    setShowResultModal(false);
     setResult(null);
     setSubmitError('');
+  };
+
+  const exitQuizSession = () => {
+    setActiveQuiz(null);
+    setCurrentQ(0);
+    setAnswers({});
+    setTextAnswers({});
+    setIsSubmitted(false);
+    setShowResultModal(false);
+    setResult(null);
+    setSubmitError('');
+    fetchQuizzes();
   };
 
   // ── select an answer ───────────────────────────────────
@@ -145,18 +176,29 @@ export function Quizzes() {
     setAnswers(prev => ({ ...prev, [questionId]: optionIdx }));
   };
 
+  const handleTextAnswer = (questionId, value) => {
+    if (isSubmitted) return;
+    setTextAnswers(prev => ({ ...prev, [questionId]: value }));
+  };
+
   // ── submit quiz ────────────────────────────────────────
   const handleSubmit = async () => {
     if (!activeQuiz || isSubmitting) return;
     setIsSubmitting(true);
     setSubmitError('');
 
-    const formattedAnswers = activeQuiz.questions.map(q => ({
-      question_id: q.id,
-      answer: answers[q.id] !== undefined
-        ? q.options?.[answers[q.id]]     // convert index → option string
-        : '',
-    }));
+    const formattedAnswers = activeQuiz.questions.map(q => {
+      if (q.type === 'short_answer') {
+        return { question_id: q.id, answer: textAnswers[q.id] ?? '' };
+      }
+      const idx = answers[q.id];
+      if (idx === undefined) {
+        return { question_id: q.id, answer: '' };
+      }
+      const opt = q.options?.[idx] ?? '';
+      const letter = opt.match(/^([A-D])\)/i)?.[1] ?? opt;
+      return { question_id: q.id, answer: letter };
+    });
 
     try {
       const res = await api.post('/quiz/submit', {
@@ -165,6 +207,7 @@ export function Quizzes() {
       });
       setResult(res.data?.data);
       setIsSubmitted(true);
+      setShowResultModal(true);
       await fetchQuizzes();
     } catch (err) {
       setSubmitError(err.response?.data?.error ?? 'Failed to submit quiz. Please try again.');
@@ -175,68 +218,153 @@ export function Quizzes() {
 
   // ── render: active quiz session ────────────────────────
   if (activeQuiz) {
-    const q     = activeQuiz.questions[currentQ];
+    const q      = activeQuiz.questions[currentQ];
     const totalQ = activeQuiz.questions.length;
+    const graded = getGradedForQuestion(result, q.id);
+    const isShortAnswer = q.type === 'short_answer' || !(q.options?.length);
 
     return (
       <div className="max-w-3xl mx-auto space-y-6">
+
+        <SectionBackButton
+          label="Back to Quizzes"
+          onClick={exitQuizSession}
+          variant="button"
+        />
 
         {/* Header */}
         <div className="glass-card p-4 flex justify-between items-center">
           <div>
             <h2 className="font-bold text-gray-900 dark:text-white">{activeQuiz.document_title ?? 'Quiz'}</h2>
-            <p className="text-sm text-gray-500">Question {currentQ + 1} of {totalQ}</p>
+            <p className="text-sm text-gray-500">
+              Question {currentQ + 1} of {totalQ}
+              {isSubmitted && (
+                <span className="ml-2 text-primary-600 dark:text-primary-400 font-medium">— Review Mode</span>
+              )}
+            </p>
           </div>
-          <div className={`flex items-center gap-2 font-mono text-lg font-bold px-4 py-2 rounded-lg ${
-            timeLeft < 60 ? 'bg-red-50 text-red-600' : 'bg-gray-100 dark:bg-dark-border text-gray-700 dark:text-gray-300'
-          }`}>
-            <Clock size={20} /> {formatTime(timeLeft)}
-          </div>
+          {!isSubmitted && (
+            <div className={`flex items-center gap-2 font-mono text-lg font-bold px-4 py-2 rounded-lg ${
+              timeLeft < 60 ? 'bg-red-50 text-red-600' : 'bg-gray-100 dark:bg-dark-border text-gray-700 dark:text-gray-300'
+            }`}>
+              <Clock size={20} /> {formatTime(timeLeft)}
+            </div>
+          )}
         </div>
 
-        {/* Question */}
-        <div className="glass-card p-8">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${DIFFICULTY_COLORS[activeQuiz.difficulty] ?? ''}`}>
-              {activeQuiz.difficulty}
-            </span>
-          </div>
-          <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-6">{q.question ?? q.q}</h3>
-
-          <div className="space-y-3">
-            {(q.options ?? []).map((opt, idx) => {
-              const isSelected = answers[q.id] === idx;
-              const isCorrect  = isSubmitted && (typeof q.correct_answer === 'string'
-                ? opt === q.correct_answer
-                : idx === q.correct_answer || idx === q.correct);
-              const isWrong    = isSubmitted && isSelected && !isCorrect;
-
-              let cls = 'bg-gray-50 dark:bg-dark-border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700';
-              if (isSelected && !isSubmitted) cls = 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 ring-1 ring-primary-500';
-              if (isCorrect) cls = 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700 text-green-800 dark:text-green-300';
-              if (isWrong)   cls = 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700 text-red-800 dark:text-red-300';
-
+        {/* Question dots */}
+        {isSubmitted && (
+          <div className="flex flex-wrap gap-2">
+            {activeQuiz.questions.map((question, idx) => {
+              const g = getGradedForQuestion(result, question.id);
+              const correct = g?.is_correct;
               return (
                 <button
-                  key={idx}
-                  onClick={() => handleSelect(q.id, idx)}
-                  disabled={isSubmitted}
-                  className={`w-full text-left p-4 rounded-xl border transition-all flex justify-between items-center ${cls}`}
+                  key={question.id}
+                  type="button"
+                  onClick={() => setCurrentQ(idx)}
+                  className={`w-8 h-8 rounded-lg text-xs font-bold border transition-colors ${
+                    idx === currentQ ? 'ring-2 ring-primary-500' : ''
+                  } ${
+                    correct === true
+                      ? 'bg-green-100 dark:bg-green-900/30 border-green-300 text-green-700'
+                      : correct === false
+                      ? 'bg-red-100 dark:bg-red-900/30 border-red-300 text-red-700'
+                      : 'bg-gray-100 dark:bg-dark-border border-gray-200 text-gray-600'
+                  }`}
                 >
-                  <span>{opt}</span>
-                  {isCorrect && <CheckCircle2 size={20} className="text-green-500 flex-shrink-0" />}
-                  {isWrong   && <AlertCircle  size={20} className="text-red-500   flex-shrink-0" />}
+                  {idx + 1}
                 </button>
               );
             })}
           </div>
+        )}
 
-          {isSubmitted && q.explanation && (
+        {/* Question */}
+        <div className="glass-card p-8">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${DIFFICULTY_COLORS[q.difficulty] ?? ''}`}>
+              {q.difficulty}
+            </span>
+            {q.type && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-dark-border text-gray-600 dark:text-gray-400 uppercase">
+                {q.type.replace('_', ' ')}
+              </span>
+            )}
+          </div>
+          <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-6">{q.question ?? q.q}</h3>
+
+          {isShortAnswer ? (
+            <div className="space-y-3">
+              <textarea
+                value={textAnswers[q.id] ?? ''}
+                onChange={(e) => handleTextAnswer(q.id, e.target.value)}
+                disabled={isSubmitted}
+                rows={4}
+                placeholder="Type your answer here…"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-70 resize-none"
+              />
+              {isSubmitted && (
+                <div className="space-y-2">
+                  <div className={`p-4 rounded-xl border ${
+                    graded?.is_correct
+                      ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700'
+                      : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
+                  }`}>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Your answer</p>
+                    <p className="text-sm">{formatStudentAnswer(q, answers, textAnswers)}</p>
+                  </div>
+                  {!graded?.is_correct && (
+                    <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-green-700 dark:text-green-400 mb-1">Correct answer</p>
+                      <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                        {graded?.correct_answer ?? q.correct_answer}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(q.options ?? []).map((opt, idx) => {
+                const isSelected = answers[q.id] === idx;
+                const correct    = isSubmitted && isOptionCorrect(q, opt, idx);
+                const isWrong    = isSubmitted && isSelected && !correct;
+
+                let cls = 'bg-gray-50 dark:bg-dark-border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700';
+                if (isSelected && !isSubmitted) cls = 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 ring-1 ring-primary-500';
+                if (correct) cls = 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700 text-green-800 dark:text-green-300';
+                if (isWrong) cls = 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700 text-red-800 dark:text-red-300';
+
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelect(q.id, idx)}
+                    disabled={isSubmitted}
+                    className={`w-full text-left p-4 rounded-xl border transition-all flex justify-between items-center gap-3 ${cls}`}
+                  >
+                    <span>{opt}</span>
+                    <span className="flex items-center gap-2 flex-shrink-0">
+                      {correct && isSubmitted && (
+                        <span className="text-xs font-semibold text-green-600">Correct</span>
+                      )}
+                      {correct && <CheckCircle2 size={20} className="text-green-500" />}
+                      {isWrong && <AlertCircle size={20} className="text-red-500" />}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {isSubmitted && (q.explanation || graded?.feedback) && (
             <div className="mt-6 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50">
               <h4 className="font-semibold text-blue-800 dark:text-blue-300 mb-1 flex items-center gap-2">
                 <HelpCircle size={18} /> Explanation
               </h4>
-              <p className="text-sm text-blue-900 dark:text-blue-200">{q.explanation}</p>
+              <p className="text-sm text-blue-900 dark:text-blue-200">{q.explanation || graded?.feedback}</p>
             </div>
           )}
 
@@ -248,36 +376,47 @@ export function Quizzes() {
         </div>
 
         {/* Navigation */}
-        <div className="flex justify-between items-center">
-          <button
-            onClick={() => setCurrentQ(i => Math.max(0, i - 1))}
-            disabled={currentQ === 0}
-            className="px-6 py-2 border border-gray-200 dark:border-dark-border rounded-lg disabled:opacity-50 font-medium bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-border"
-          >
-            Previous
-          </button>
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+          <div className="flex justify-between items-center gap-3 flex-1">
+            <button
+              type="button"
+              onClick={() => setCurrentQ(i => Math.max(0, i - 1))}
+              disabled={currentQ === 0}
+              className="px-6 py-2 border border-gray-200 dark:border-dark-border rounded-lg disabled:opacity-50 font-medium bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-border"
+            >
+              Previous
+            </button>
 
-          {!isSubmitted && currentQ === totalQ - 1 ? (
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium shadow-lg shadow-green-500/30 transition-colors disabled:opacity-60 flex items-center gap-2"
-            >
-              {isSubmitting ? <><Loader2 size={16} className="animate-spin" /> Grading…</> : 'Submit Quiz'}
-            </button>
-          ) : (
-            <button
-              onClick={() => setCurrentQ(i => Math.min(totalQ - 1, i + 1))}
-              disabled={currentQ === totalQ - 1}
-              className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
-            >
-              Next
-            </button>
-          )}
+            {!isSubmitted && currentQ === totalQ - 1 ? (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium shadow-lg shadow-green-500/30 transition-colors disabled:opacity-60 flex items-center gap-2"
+              >
+                {isSubmitting ? <><Loader2 size={16} className="animate-spin" /> Grading…</> : 'Submit Quiz'}
+              </button>
+            ) : isSubmitted && currentQ === totalQ - 1 ? (
+              <SectionBackButton
+                label="Back to Quizzes"
+                onClick={exitQuizSession}
+                variant="button"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setCurrentQ(i => Math.min(totalQ - 1, i + 1))}
+                disabled={currentQ === totalQ - 1}
+                className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
+              >
+                Next
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Result Modal */}
-        {isSubmitted && result && (
+        {isSubmitted && showResultModal && result && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="glass-card w-full max-w-sm p-8 text-center">
               <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${
@@ -308,10 +447,18 @@ export function Quizzes() {
               )}
 
               <div className="flex gap-3 justify-center">
-                <button onClick={() => setActiveQuiz(null)} className="px-4 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-dark-border">
+                <button
+                  type="button"
+                  onClick={exitQuizSession}
+                  className="px-4 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-dark-border"
+                >
                   Back to Quizzes
                 </button>
-                <button onClick={() => setIsSubmitted(false)} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">
+                <button
+                  type="button"
+                  onClick={() => setShowResultModal(false)}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"
+                >
                   Review Answers
                 </button>
               </div>
@@ -341,22 +488,37 @@ export function Quizzes() {
       {/* Generator */}
       {showGenerator && (
         <div className="glass-card p-6 border border-primary-200 dark:border-primary-800/50 space-y-4">
-          <h2 className="font-semibold text-gray-900 dark:text-white">Generate a New Quiz</h2>
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="flex justify-between items-center gap-4">
+            <h2 className="font-semibold text-gray-900 dark:text-white">Generate a New Quiz</h2>
+            <SectionBackButton
+              label="Close"
+              onClick={() => setShowGenerator(false)}
+            />
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {docsLoading ? (
-              <div className="sm:col-span-3 flex items-center gap-2 text-gray-400 text-sm">
+              <div className="sm:col-span-4 flex items-center gap-2 text-gray-400 text-sm">
                 <Loader2 size={16} className="animate-spin" /> Loading documents…
               </div>
             ) : (
               <>
                 <select
-                  className="sm:col-span-1 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary-500"
+                  className="sm:col-span-2 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary-500"
                   value={selectedDocId}
                   onChange={e => setSelectedDocId(e.target.value)}
                 >
                   <option value="">— Select document —</option>
                   {documents.map(d => (
                     <option key={d.document_id} value={d.document_id}>{d.title}</option>
+                  ))}
+                </select>
+                <select
+                  className="bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary-500"
+                  value={quizType}
+                  onChange={e => setQuizType(e.target.value)}
+                >
+                  {QUIZ_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
                 <select

@@ -57,7 +57,7 @@ export function LandingPage() {
           </motion.div>
         </motion.div>
 
-        {/* Hero Abstract Graphic */}
+        {/* Hero product preview */}
         <motion.div 
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
@@ -70,16 +70,53 @@ export function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-red-400"></div>
                   <div className="w-3 h-3 rounded-full bg-amber-400"></div>
                   <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                  <span className="ml-3 text-xs text-gray-400 font-medium">StudyAI Dashboard</span>
                 </div>
-                <div className="flex-1 p-8 flex items-center justify-center">
-                  <motion.div 
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                    className="relative w-32 h-32 flex items-center justify-center"
-                  >
-                    <div className="absolute inset-0 border-4 border-dashed border-primary-500/30 rounded-full"></div>
-                    <Brain size={48} className="text-primary-500" />
-                  </motion.div>
+                <div className="flex-1 p-6 grid grid-cols-3 gap-4">
+                  {/* Upload panel */}
+                  <div className="col-span-1 rounded-xl border border-dashed border-primary-300 dark:border-primary-700 bg-primary-50/50 dark:bg-primary-900/10 p-4 flex flex-col items-center justify-center gap-2">
+                    <UploadCloud size={28} className="text-primary-500" />
+                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 text-center">Upload PDF</p>
+                    <p className="text-[10px] text-gray-400 text-center">Biology Ch.5.pdf</p>
+                  </div>
+                  {/* Summary panel */}
+                  <div className="col-span-1 rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card p-4 flex flex-col gap-2">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <FileText size={14} className="text-primary-500" />
+                      <p className="text-xs font-bold text-gray-800 dark:text-gray-200">AI Summary</p>
+                    </div>
+                    <div className="space-y-1.5 flex-1">
+                      <div className="h-2 bg-gray-200 dark:bg-dark-border rounded-full w-full"></div>
+                      <div className="h-2 bg-gray-200 dark:bg-dark-border rounded-full w-4/5"></div>
+                      <div className="h-2 bg-gray-200 dark:bg-dark-border rounded-full w-full"></div>
+                      <div className="h-2 bg-primary-200 dark:bg-primary-800 rounded-full w-3/5"></div>
+                    </div>
+                    <p className="text-[10px] text-green-600 dark:text-green-400 font-medium">✓ 12 key concepts extracted</p>
+                  </div>
+                  {/* Quiz + flashcards panel */}
+                  <div className="col-span-1 flex flex-col gap-3">
+                    <div className="flex-1 rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card p-3 flex flex-col gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Layers size={14} className="text-blue-500" />
+                        <p className="text-xs font-bold text-gray-800 dark:text-gray-200">Flashcards</p>
+                      </div>
+                      <div className="flex-1 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 flex items-center justify-center">
+                        <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">20 cards ready</p>
+                      </div>
+                    </div>
+                    <div className="flex-1 rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card p-3 flex flex-col gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Target size={14} className="text-orange-500" />
+                        <p className="text-xs font-bold text-gray-800 dark:text-gray-200">Quiz Score</p>
+                      </div>
+                      <div className="flex items-end gap-1 flex-1">
+                        {[40, 65, 55, 80, 90].map((h, i) => (
+                          <div key={i} className="flex-1 rounded-t bg-orange-400/70" style={{ height: `${h}%` }}></div>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-orange-600 dark:text-orange-400 font-medium">Avg. 86% — improving!</p>
+                    </div>
+                  </div>
                 </div>
              </div>
           </div>

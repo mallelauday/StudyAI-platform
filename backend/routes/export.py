@@ -20,7 +20,6 @@ export_bp = Blueprint("export", __name__)
 
 
 @export_bp.route("/export/pdf", methods=["GET"])
-@export_bp.route("/api/export/pdf", methods=["GET"])
 def export_pdf():
     """
     Export study plan or summary to a beautifully formatted PDF.

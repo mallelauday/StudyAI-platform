@@ -7,10 +7,15 @@ and provides Firestore client.
 """
 
 import os
+from pathlib import Path
+
 import firebase_admin
 from firebase_admin import credentials, firestore
 
 from utils.logger import get_logger
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "serviceAccountKey.json"
 
 logger = get_logger(__name__)
 
@@ -20,24 +25,13 @@ _firestore_client = None
 _firebase_available = False
 
 
-def init_firebase():
-    """
-    Initialise Firebase using serviceAccountKey.json
-    """
+def _resolve_credentials():
+    """Build Firebase credentials from env vars or serviceAccountKey.json."""
+    from config import get_config
+    Config = get_config()
 
-    global _firebase_app, _firestore_client, _firebase_available
-
-    try:
-        from config import get_config
-        Config = get_config()
-
-        if not Config.is_firebase_configured():
-            logger.error("❌ Firebase environment variables are incomplete.")
-            _firebase_available = False
-            return
-
-        # Firebase config dictionary built from environment variables
-        firebase_config = {
+    if Config.is_firebase_configured():
+        return credentials.Certificate({
             "type": Config.FIREBASE_TYPE,
             "project_id": Config.FIREBASE_PROJECT_ID,
             "private_key_id": Config.FIREBASE_PRIVATE_KEY_ID,
@@ -47,11 +41,31 @@ def init_firebase():
             "auth_uri": Config.FIREBASE_AUTH_URI,
             "token_uri": Config.FIREBASE_TOKEN_URI,
             "auth_provider_x509_cert_url": Config.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
-            "client_x509_cert_url": Config.FIREBASE_CLIENT_X509_CERT_URL
-        }
+            "client_x509_cert_url": Config.FIREBASE_CLIENT_X509_CERT_URL,
+        })
 
-        # Initialize credentials
-        cred = credentials.Certificate(firebase_config)
+    if SERVICE_ACCOUNT_FILE.is_file():
+        logger.info("Using Firebase credentials from %s", SERVICE_ACCOUNT_FILE.name)
+        return credentials.Certificate(str(SERVICE_ACCOUNT_FILE))
+
+    return None
+
+
+def init_firebase():
+    """
+    Initialise Firebase using environment variables or serviceAccountKey.json.
+    """
+
+    global _firebase_app, _firestore_client, _firebase_available
+
+    try:
+        cred = _resolve_credentials()
+        if cred is None:
+            logger.warning(
+                "Firebase credentials not found — set .env vars or add serviceAccountKey.json"
+            )
+            _firebase_available = False
+            return
 
         # Initialize Firebase only once
         if not firebase_admin._apps:

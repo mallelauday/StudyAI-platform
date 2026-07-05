@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Sun, Moon, Brain, LogOut, User, Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "../ThemeToggle";
+import { getAvatarUrl } from "../../utils/avatarUtils";
 
 export function Navbar() {
   const { theme, toggleTheme } = useTheme();
@@ -78,9 +79,9 @@ export function Navbar() {
                   <div className="relative group">
                     <button className="flex items-center gap-2">
                       <img
-                        src={user.avatar}
+                        src={getAvatarUrl(user)}
                         alt="Avatar"
-                        className="w-8 h-8 rounded-full"
+                        className="w-8 h-8 rounded-full object-cover bg-white"
                       />
                     </button>
 

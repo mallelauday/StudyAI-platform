@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UploadCloud, FileText, CheckCircle, Loader2, AlertCircle, Trash2, RefreshCw } from 'lucide-react';
 import api from '../../api/api';
+import { DocumentActions } from '../../components/shared/DocumentActions';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -204,6 +205,14 @@ export function UploadMaterial() {
                   <p><span className="font-medium">Words:</span> {uploadedDoc.word_count?.toLocaleString()}</p>
                   <p><span className="font-medium">Pages:</span> {uploadedDoc.page_count}</p>
                 </div>
+                <div className="mt-4 ml-9">
+                  <p className="text-sm font-medium text-green-800 dark:text-green-400 mb-3">
+                    What would you like to create?
+                  </p>
+                  <DocumentActions
+                    documentId={uploadedDoc.document_id || uploadedDoc.id}
+                  />
+                </div>
               </div>
             )}
 
@@ -274,13 +283,8 @@ export function UploadMaterial() {
                     <span>{formatDate(doc.created_at)}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    doc.status === 'summarised' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                  }`}>
-                    {doc.status ?? 'processed'}
-                  </span>
+                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 flex-shrink-0">
+                  <DocumentActions documentId={doc.document_id} size="sm" />
                   <button
                     onClick={() => handleDelete(doc.document_id)}
                     className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"

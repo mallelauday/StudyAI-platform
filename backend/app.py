@@ -1,17 +1,16 @@
 """
 ============================================================
-StudyAI Backend — Flask Application Entry Point (FIXED)
+StudyAI Backend — Flask Application Entry Point
 ============================================================
 """
 
-import os
 from flask import Flask, request
 from flask_cors import CORS
 
 from config import get_config
 from utils.logger import get_logger
 from utils.helpers import error_response
-from firebase.firebase_config import init_firebase, ensure_collections
+from firebase.firebase_config import init_firebase, ensure_collections, is_firebase_available
 from services.local_storage import init_local_storage
 
 # ── Bootstrap ─────────────────────────────────────────────
@@ -20,77 +19,65 @@ Config.ensure_directories()
 
 logger = get_logger("studyai.app")
 
-# ── Startup environment variable validation ───────────────
-required_vars = [
-    "FIREBASE_PROJECT_ID",
-    "FIREBASE_PRIVATE_KEY",
-    "GROQ_API_KEY"
-]
-missing_vars = [var for var in required_vars if not os.getenv(var)]
-if missing_vars:
-    for var in missing_vars:
-        logger.error("❌ CRITICAL CONFIG ERROR: Missing required environment variable %s", var)
-else:
-    logger.info("✅ All required environment variables are present.")
+
+def _validate_startup_config() -> None:
+    """Log configuration status at startup."""
+    if not Config.is_groq_configured():
+        logger.error("Missing required environment variable: GROQ_API_KEY")
+        return
+
+    if is_firebase_available():
+        logger.info("Groq and Firebase configuration look good.")
+    elif Config.USE_LOCAL_STORAGE:
+        logger.info(
+            "Groq configured. Firebase unavailable — using local JSON storage."
+        )
+    else:
+        logger.error(
+            "Firebase credentials missing and USE_LOCAL_STORAGE is disabled."
+        )
 
 
 # ── Application Factory ───────────────────────────────────
 def create_app() -> Flask:
     app = Flask(__name__)
 
-    # ── Flask config ──────────────────────────────────────
     app.config["SECRET_KEY"] = Config.SECRET_KEY
     app.config["DEBUG"] = Config.DEBUG
     app.config["MAX_CONTENT_LENGTH"] = Config.MAX_CONTENT_LENGTH
     app.config["UPLOAD_FOLDER"] = str(Config.UPLOAD_FOLDER)
 
-    # ──────────────────────────────────────────────────────
-    # FIX 1: SAFE CORS CONFIG (frontend compatible)
-    # ──────────────────────────────────────────────────────
-    cors_origins = getattr(Config, "CORS_ORIGINS", None)
-
-    if not cors_origins:
-        cors_origins = [
-            "https://studyai-navy.vercel.app",
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:3000",
-        ]
-
     CORS(
         app,
-        resources={r"/*": {"origins": cors_origins}},
+        resources={r"/*": {"origins": Config.CORS_ORIGINS}},
         supports_credentials=True,
     )
+    logger.info("CORS enabled for: %s", Config.CORS_ORIGINS)
 
-    logger.info("CORS enabled for: %s", cors_origins)
-
-    # ── Firebase ──────────────────────────────────────────
     try:
         init_firebase()
         ensure_collections()
-        logger.info("Firebase initialized successfully")
+        if is_firebase_available():
+            logger.info("Firebase initialized successfully")
+        elif Config.USE_LOCAL_STORAGE:
+            logger.warning("Firebase unavailable — continuing with local storage")
+        else:
+            logger.error("Firebase init failed and local storage is disabled")
     except Exception as e:
         logger.error("Firebase init failed: %s", str(e))
 
-    # ── Local Storage ─────────────────────────────────────
     try:
         init_local_storage()
         logger.info("Local storage initialized")
     except Exception as e:
         logger.error("Local storage init failed: %s", str(e))
 
-    # ── Blueprints ────────────────────────────────────────
     _register_blueprints(app)
-
-    # ── Error handlers ────────────────────────────────────
     _register_error_handlers(app)
-
-    # ── Logging hooks ─────────────────────────────────────
     _register_request_hooks(app)
 
     logger.info(
-        "🚀 %s v%s running — env: %s | %s:%s",
+        "%s v%s ready — env: %s | %s:%s",
         Config.APP_NAME,
         Config.APP_VERSION,
         Config.FLASK_ENV,
@@ -125,17 +112,8 @@ def _register_blueprints(app: Flask) -> None:
 
     logger.info("Blueprints registered successfully")
 
-    logger.info("Registered Routes:")
-    for rule in app.url_map.iter_rules():
-        logger.info(
-            "Route: %s [%s] -> %s",
-            rule.rule,
-            ",".join(rule.methods),
-            rule.endpoint,
-        )
 
-
-# ── Error Handlers (SAFE JSON RESPONSES) ────────────────
+# ── Error Handlers ───────────────────────────────────────
 def _register_error_handlers(app: Flask) -> None:
 
     @app.errorhandler(400)
@@ -166,7 +144,6 @@ def _register_error_handlers(app: Flask) -> None:
     def too_many(e):
         return error_response("Too many requests", 429)
 
-    # ── FIX 2: Prevent 500 crashes leaking to frontend ──
     @app.errorhandler(500)
     def internal_error(e):
         logger.exception("Server error at %s", request.path)
@@ -178,7 +155,6 @@ def _register_request_hooks(app: Flask) -> None:
 
     @app.before_request
     def log_request():
-        print(request.method, request.path)
         logger.debug("→ %s %s", request.method, request.path)
 
     @app.after_request
@@ -192,12 +168,14 @@ def _register_request_hooks(app: Flask) -> None:
         return response
 
 
-# ── Run App ──────────────────────────────────────────────
+# ── WSGI entry point (gunicorn: app:app) ─────────────────
 app = create_app()
+_validate_startup_config()
+
 
 if __name__ == "__main__":
     app.run(
-        host="0.0.0.0",
-        port=5000,
-        debug=True
+        host=Config.HOST,
+        port=Config.PORT,
+        debug=Config.DEBUG,
     )

@@ -3,6 +3,8 @@ import ReactMarkdown from 'react-markdown';
 import { Copy, Sparkles, Check, Loader2, AlertCircle, BookOpen, RefreshCw } from 'lucide-react';
 import api from '../../api/api';
 import { useDocuments } from '../../hooks/useDocuments';
+import { useDocFromQuery } from '../../hooks/useDocFromQuery';
+import { SectionBackButton } from '../../components/shared/SectionBackButton';
 
 // ── helpers ───────────────────────────────────────────────
 
@@ -67,6 +69,8 @@ export function AISummaries() {
 
   useEffect(() => { fetchSummaries(); }, []);
 
+  useDocFromQuery(setSelectedDocId, documents);
+
   // ── generate summary ───────────────────────────────────
   const handleGenerate = async () => {
     if (!selectedDocId) return;
@@ -104,6 +108,12 @@ export function AISummaries() {
     navigator.clipboard.writeText(markdownText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const clearActiveSummary = () => {
+    setActiveSummary(null);
+    setMarkdownText('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // ── render ─────────────────────────────────────────────
@@ -159,6 +169,12 @@ export function AISummaries() {
 
       {/* ── Generated / selected summary ───────────────── */}
       {markdownText && (
+        <div className="space-y-4">
+          <SectionBackButton
+            label="Back to Summaries List"
+            onClick={clearActiveSummary}
+            variant="button"
+          />
         <div className="glass-card overflow-hidden">
           <div className="bg-gray-50 dark:bg-dark-border/30 px-6 py-4 border-b border-gray-200 dark:border-dark-border flex justify-between items-center">
             <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -179,6 +195,7 @@ export function AISummaries() {
           <div className="p-8 prose prose-blue dark:prose-invert max-w-none">
             <ReactMarkdown>{markdownText}</ReactMarkdown>
           </div>
+        </div>
         </div>
       )}
 

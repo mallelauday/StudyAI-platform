@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { User, Bell, Shield, Moon, Sun, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '../../api/api';
+import { STUDY_AVATARS, getAvatarUrl } from '../../utils/avatarUtils';
 
 export function Profile() {
   const { user, updateUser, logout } = useAuth();
@@ -19,7 +20,7 @@ export function Profile() {
     return parts.slice(1).join(' ') || '';
   });
   const [email, setEmail] = useState(() => user?.email || '');
-  const [avatarUrl, setAvatarUrl] = useState(() => user?.avatar_url || user?.avatar || '');
+  const [avatarUrl, setAvatarUrl] = useState(() => getAvatarUrl(user));
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -86,10 +87,10 @@ export function Profile() {
             <div className="flex items-center gap-6 mb-8">
               <div className="relative">
                 <img 
-                  src={avatarUrl || "/avatar-placeholder.png"} 
+                  src={avatarUrl} 
                   alt="Profile" 
                   className="w-20 h-20 rounded-full border-4 border-gray-100 dark:border-dark-border bg-white object-cover" 
-                  onError={(e) => { e.target.src = "/avatar-placeholder.png"; }}
+                  onError={(e) => { e.target.src = getAvatarUrl(user); }}
                 />
                 <div className="absolute bottom-0 right-0 p-1.5 bg-primary-600 text-white rounded-full border-2 border-white dark:border-dark-card">
                   <User size={14} />
@@ -153,14 +154,28 @@ export function Profile() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Avatar Image URL</label>
-                <input 
-                  type="text" 
-                  value={avatarUrl} 
-                  onChange={e => setAvatarUrl(e.target.value)}
-                  placeholder="https://example.com/avatar.jpg"
-                  className="w-full px-4 py-2 bg-gray-50 dark:bg-dark-bg/50 border border-gray-200 dark:border-dark-border rounded-xl focus:ring-2 focus:ring-primary-500 outline-none" 
-                />
+                <label className="block text-sm font-medium mb-3 text-gray-700 dark:text-gray-300">Choose Avatar</label>
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+                  {STUDY_AVATARS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      title={preset.label}
+                      onClick={() => setAvatarUrl(preset.url)}
+                      className={`relative rounded-xl p-1 transition-all hover:scale-105 ${
+                        avatarUrl === preset.url
+                          ? 'ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-dark-card'
+                          : 'ring-1 ring-gray-200 dark:ring-dark-border'
+                      }`}
+                    >
+                      <img
+                        src={preset.url}
+                        alt={preset.label}
+                        className="w-full aspect-square rounded-lg bg-white object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <button 

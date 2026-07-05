@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Layers, ChevronLeft, ChevronRight, Shuffle, CheckCircle2, Loader2, AlertCircle, BookOpen, Sparkles } from 'lucide-react';
 import api from '../../api/api';
 import { useDocuments } from '../../hooks/useDocuments';
+import { useDocFromQuery } from '../../hooks/useDocFromQuery';
+import { SectionBackButton } from '../../components/shared/SectionBackButton';
 
 // ── component ─────────────────────────────────────────────
 
@@ -40,6 +42,8 @@ export function Flashcards() {
   };
 
   useEffect(() => { fetchSets(); }, []);
+
+  useDocFromQuery(setSelectedDocId, documents);
 
   // ── open a set (load full cards) ───────────────────────
   const openSet = async (setId) => {
@@ -98,24 +102,40 @@ export function Flashcards() {
   };
 
   // ── mark mastered ──────────────────────────────────────
-  const toggleMastered = async () => {
+  const toggleMastered = async (e) => {
+    e?.stopPropagation?.();
     if (!activeSetId || cards.length === 0) return;
     const card = cards[currentIndex];
     const cardId = String(card.id);
-    const nowMastered = !masteredIds.has(cardId);
+    const wasMastered = masteredIds.has(cardId);
+    const nowMastered = !wasMastered;
 
+    const prevMasteredIds = masteredIds;
     const newSet = new Set(masteredIds);
     nowMastered ? newSet.add(cardId) : newSet.delete(cardId);
     setMasteredIds(newSet);
 
+    const updatedCards = cards.map((c) =>
+      String(c.id) === cardId ? { ...c, mastered: nowMastered } : c
+    );
+    setCards(updatedCards);
+
     try {
-      await api.patch(`/flashcards/${activeSetId}/master`, {
+      const res = await api.patch(`/flashcards/${activeSetId}/master`, {
         card_ids: [card.id],
         mastered: nowMastered,
       });
+      const masteredTotal = res.data?.data?.mastered_count ?? newSet.size;
+      setSets((prev) =>
+        prev.map((s) =>
+          s.flashcard_set_id === activeSetId
+            ? { ...s, mastered_count: masteredTotal }
+            : s
+        )
+      );
     } catch {
-      // revert optimistic update
-      setMasteredIds(masteredIds);
+      setMasteredIds(prevMasteredIds);
+      setCards(cards);
     }
   };
 
@@ -126,14 +146,17 @@ export function Flashcards() {
   if (cards.length > 0 && activeSetId) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
+        <SectionBackButton
+          label="Back to Flashcard Sets"
+          onClick={() => { setCards([]); setActiveSetId(null); fetchSets(); }}
+          variant="button"
+        />
+
         <div className="flex justify-between items-end">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Flashcard Generator</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Master your topics with interactive flashcards.</p>
           </div>
-          <button onClick={() => { setCards([]); setActiveSetId(null); }} className="text-sm text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 font-medium">
-            ← Back to sets
-          </button>
         </div>
 
         <div className="flex justify-between items-center bg-white dark:bg-dark-card p-4 rounded-xl border border-gray-200 dark:border-dark-border shadow-sm">
@@ -179,7 +202,14 @@ export function Flashcards() {
         </div>
 
         {/* Controls */}
-        <div className="flex justify-between items-center pt-4">
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-4">
+          <SectionBackButton
+            label="Back to Flashcard Sets"
+            onClick={() => { setCards([]); setActiveSetId(null); fetchSets(); }}
+            variant="button"
+            className="sm:hidden"
+          />
+          <div className="flex justify-between items-center flex-1">
           <button onClick={prevCard} className="p-3 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl hover:bg-gray-50 dark:hover:bg-dark-border transition-colors text-gray-600 dark:text-gray-300 shadow-sm">
             <ChevronLeft size={24} />
           </button>
@@ -187,7 +217,7 @@ export function Flashcards() {
             onClick={toggleMastered}
             className={`flex items-center gap-2 px-6 py-3 font-medium rounded-xl shadow-lg transition-all ${
               isCurrentMastered
-                ? 'bg-gray-200 dark:bg-dark-border text-gray-700 dark:text-gray-300'
+                ? 'bg-green-600 text-white shadow-green-500/20 ring-2 ring-green-400'
                 : 'bg-green-500 hover:bg-green-600 text-white shadow-green-500/20'
             }`}
           >
@@ -197,6 +227,7 @@ export function Flashcards() {
           <button onClick={nextCard} className="p-3 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl hover:bg-gray-50 dark:hover:bg-dark-border transition-colors text-gray-600 dark:text-gray-300 shadow-sm">
             <ChevronRight size={24} />
           </button>
+          </div>
         </div>
 
         <style>{`
