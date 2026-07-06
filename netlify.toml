@@ -1,14 +1,5 @@
-# Netlify redirect rules for StudyAI
 [[redirects]]
-  from = "/api/*"
-  to = "https://studyai-platform.onrender.com/:splat"
-  status = 200
-  force = true
-  # Preserve query strings and enable CORS
-  headers = { "Access-Control-Allow-Origin" = "*" }
-
-# Optional: redirect root to frontend index (if needed)
-[[redirects]]
-  from = "/"
-  to = "/index.html"
-  status = 200
+from = "/api/*"
+to = "https://studyai-platform.onrender.com/:splat"
+status = 200
+force = true
