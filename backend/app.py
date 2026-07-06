@@ -145,7 +145,7 @@ def _register_blueprints(app: Flask) -> None:
     from routes.export import export_bp
     from routes.profile import profile_bp
 
-    app.register_blueprint(health_bp)
+    app.register_blueprint(health_bp, url_prefix="/api")
     app.register_blueprint(auth_bp, url_prefix="/api")
     app.register_blueprint(upload_bp, url_prefix="/api")
     app.register_blueprint(summary_bp, url_prefix="/api")
