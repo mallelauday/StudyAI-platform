@@ -83,6 +83,7 @@ class Config:
         if origin.strip()
     ] or [
         "https://studyai-navy.vercel.app",
+        "https://studyaiplatform.netlify.app",
         "http://localhost:3000",
         "http://localhost:5173",
         "http://127.0.0.1:3000",

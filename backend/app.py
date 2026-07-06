@@ -50,12 +50,17 @@ def create_app() -> Flask:
     app.config["MAX_CONTENT_LENGTH"] = Config.MAX_CONTENT_LENGTH
     app.config["UPLOAD_FOLDER"] = str(Config.UPLOAD_FOLDER)
 
-    CORS(
-        app,
-        resources={r"/*": {"origins": Config.CORS_ORIGINS}},
-        supports_credentials=True,
-    )
-    logger.info("CORS enabled for: %s", Config.CORS_ORIGINS)
+    # Enable CORS for all origins (production)
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+    logger.info("CORS enabled for all origins")
+
+    @app.route("/", methods=["GET"])
+    def root():
+        return {"message": "StudyAI API running"}, 200
+
+    @app.route("/health", methods=["GET"])
+    def health():
+        return {"status": "ok"}, 200
 
     try:
         init_firebase()
@@ -192,7 +197,14 @@ _validate_startup_config()
 
 if __name__ == "__main__":
     app.run(
+<<<<<<< HEAD
         host=Config.HOST,
         port=Config.PORT,
         debug=Config.DEBUG,
     )
+=======
+        host="0.0.0.0",
+        port=int(os.environ.get('PORT', 5000)),
+        debug=True
+    )
+>>>>>>> c342a98 (Fix Render port and Netlify CORS)

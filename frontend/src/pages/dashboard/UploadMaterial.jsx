@@ -105,8 +105,7 @@ export function UploadMaterial() {
       setStatus('complete');
       await fetchDocuments(); // refresh the list
     } catch (err) {
-      const msg = err.response?.data?.error
-        ?? (err.request ? 'Server unreachable. Make sure the backend is running.' : 'Upload failed.');
+      const msg = err.response?.data?.error || err.response?.data?.message || err.message || (err.request ? 'Server unreachable. Make sure the backend is running.' : 'Upload failed.');
       setUploadError(msg);
       setStatus('error');
     }

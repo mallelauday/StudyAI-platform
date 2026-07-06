@@ -14,7 +14,7 @@ if (!_rawApiUrl) {
     + "Set VITE_API_URL in your Vercel Dashboard environment variables and redeploy."
   );
 }
-let envApiUrl = _rawApiUrl || "https://studyai-2mk0.onrender.com";
+let envApiUrl = _rawApiUrl || "https://studyai-platform.onrender.com";
 if (envApiUrl && !envApiUrl.endsWith("/api") && !envApiUrl.endsWith("/api/")) {
     envApiUrl = envApiUrl.endsWith("/") ? `${envApiUrl}api` : `${envApiUrl}/api`;
 }
