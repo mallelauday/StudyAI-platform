@@ -29,7 +29,7 @@ class Config:
 
     # ── Server ─────────────────────────────────────────────
     HOST: str = os.getenv("HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("PORT", 5000))
+    PORT: int = int(os.getenv("PORT", 10000))
 
     # ── Groq AI ────────────────────────────────────────────
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
@@ -77,17 +77,13 @@ class Config:
     LOG_FOLDER: Path = BASE_DIR / os.getenv("LOG_FOLDER", "logs")
 
     # ── CORS ───────────────────────────────────────────────
+    # Accept origins from env or default to production URL only
     CORS_ORIGINS = [
         origin.strip()
         for origin in os.getenv("CORS_ORIGINS", "").split(",")
         if origin.strip()
     ] or [
-        "https://studyai-navy.vercel.app",
         "https://studyaiplatform.netlify.app",
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
     ]
 
     # ── JWT (Flask-native tokens) ──────────────────────────
