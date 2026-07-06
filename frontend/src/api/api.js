@@ -6,19 +6,19 @@
 
 import axios from "axios";
 
-// Dynamic API URL resolution with fallback and normalization
-const _rawApiUrl = import.meta.env.VITE_API_URL;
-if (!_rawApiUrl) {
-  console.warn(
-    "[StudyAI] VITE_API_URL is not set — falling back to the production Render backend. "
-    + "Set VITE_API_URL in your Vercel Dashboard environment variables and redeploy."
-  );
+// Deployed Netlify builds use the same-origin /api proxy from public/_redirects.
+// That keeps browser requests away from the backend's origin-specific CORS policy.
+const _rawApiUrl = import.meta.env.VITE_API_URL?.trim();
+const isDev = import.meta.env.DEV;
+
+function normalizeApiUrl(url) {
+  if (!url || url === "/") return "/api";
+  if (url.startsWith("/")) return url;
+  if (url.endsWith("/api") || url.endsWith("/api/")) return url.replace(/\/$/, "");
+  return url.endsWith("/") ? `${url}api` : `${url}/api`;
 }
-let envApiUrl = _rawApiUrl || "https://studyai-2mk0.onrender.com";
-if (envApiUrl && !envApiUrl.endsWith("/api") && !envApiUrl.endsWith("/api/")) {
-    envApiUrl = envApiUrl.endsWith("/") ? `${envApiUrl}api` : `${envApiUrl}/api`;
-}
-const API_BASE_URL = envApiUrl;
+
+const API_BASE_URL = isDev ? normalizeApiUrl(_rawApiUrl) : "/api";
 
 export const api = axios.create({
     baseURL: API_BASE_URL,
@@ -52,8 +52,6 @@ export const tokenStore = {
 // Request interceptor — attach Bearer token and debug logging
 api.interceptors.request.use(
   (config) => {
-    console.log("API URL:", import.meta.env.VITE_API_URL);
-    console.log("Request:", config.url, config.data || config.params || null);
     const token = tokenStore.getAccess();
     if (token) {
       config.headers["Authorization"] = `Bearer ${token}`;
@@ -69,7 +67,11 @@ let refreshQueue = [];
 
 function processQueue(error, newToken = null) {
   refreshQueue.forEach(({ resolve, reject }) => {
-    error ? reject(error) : resolve(newToken);
+    if (error) {
+      reject(error);
+      return;
+    }
+    resolve(newToken);
   });
   refreshQueue = [];
 }
@@ -102,10 +104,6 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-
-    console.error("API Error:", error);
-    console.error("API ERROR URL:", error?.config?.url || "unknown URL");
-    console.error("API ERROR MSG:", error?.message || error);
 
     if (error.response?.status !== 401 || originalRequest._retry) {
       return Promise.reject(error);
