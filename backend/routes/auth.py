@@ -50,8 +50,10 @@ auth_bp = Blueprint("auth", __name__)
 # POST /api/auth/register
 # ============================================================
 
-@auth_bp.route("/auth/register", methods=["POST"])
+@auth_bp.route("/auth/register", methods=["POST", "OPTIONS"])
 def register():
+    if request.method == "OPTIONS":
+        return "", 200
     """
     Register a new user.
 
@@ -103,8 +105,10 @@ def register():
 # POST /api/auth/login
 # ============================================================
 
-@auth_bp.route("/auth/login", methods=["POST"])
+@auth_bp.route("/auth/login", methods=["POST", "OPTIONS"])
 def login():
+    if request.method == "OPTIONS":
+        return "", 200
     """
     Authenticate user and issue Flask JWT access + refresh tokens.
 
@@ -153,8 +157,10 @@ def login():
 # POST /api/auth/refresh
 # ============================================================
 
-@auth_bp.route("/auth/refresh", methods=["POST"])
+@auth_bp.route("/auth/refresh", methods=["POST", "OPTIONS"])
 def refresh():
+    if request.method == "OPTIONS":
+        return "", 200
     """
     Issue a new access token using a valid refresh token.
 
@@ -268,9 +274,11 @@ def profile():
 # POST /api/auth/logout
 # ============================================================
 
-@auth_bp.route("/auth/logout", methods=["POST"])
+@auth_bp.route("/auth/logout", methods=["POST", "OPTIONS"])
 @login_required
 def logout():
+    if request.method == "OPTIONS":
+        return "", 200
     """
     Logout the current user.
 
@@ -297,9 +305,11 @@ def logout():
 # PUT /api/user/profile
 # ============================================================
 
-@auth_bp.route("/user/profile", methods=["PUT"])
+@auth_bp.route("/user/profile", methods=["PUT", "OPTIONS"])
 @login_required
 def update_profile():
+    if request.method == "OPTIONS":
+        return "", 200
     """
     Update the current user's profile.
     Request body:

@@ -146,15 +146,15 @@ def _register_blueprints(app: Flask) -> None:
     from routes.profile import profile_bp
 
     app.register_blueprint(health_bp)
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(upload_bp)
-    app.register_blueprint(summary_bp)
-    app.register_blueprint(flashcards_bp)
-    app.register_blueprint(quiz_bp)
-    app.register_blueprint(schedule_bp)
-    app.register_blueprint(analytics_bp)
-    app.register_blueprint(export_bp)
-    app.register_blueprint(profile_bp)
+    app.register_blueprint(auth_bp, url_prefix="/api")
+    app.register_blueprint(upload_bp, url_prefix="/api")
+    app.register_blueprint(summary_bp, url_prefix="/api")
+    app.register_blueprint(flashcards_bp, url_prefix="/api")
+    app.register_blueprint(quiz_bp, url_prefix="/api")
+    app.register_blueprint(schedule_bp, url_prefix="/api")
+    app.register_blueprint(analytics_bp, url_prefix="/api")
+    app.register_blueprint(export_bp, url_prefix="/api")
+    app.register_blueprint(profile_bp, url_prefix="/api")
 
     logger.info("Blueprints registered successfully")
 
