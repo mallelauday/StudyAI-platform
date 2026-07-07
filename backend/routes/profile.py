@@ -38,86 +38,90 @@ def upload_profile_photo():
     Upload profile photo. Protected.
     Validates file format, size, and rate limits.
     """
-    user_id = g.user_id
+    try:
+        user_id = g.user_id
 
-    # ── 1. Limit Upload Frequency ─────────────────────────────
-    now = time.time()
-    if now - last_upload_times[user_id] < UPLOAD_COOLDOWN_SECONDS:
-        remaining = int(UPLOAD_COOLDOWN_SECONDS - (now - last_upload_times[user_id]))
-        return error_response(
-            f"Please wait {remaining} second(s) before uploading another photo.",
-            429
-        )
+        # ── 1. Limit Upload Frequency ─────────────────────────────
+        now = time.time()
+        if now - last_upload_times[user_id] < UPLOAD_COOLDOWN_SECONDS:
+            remaining = int(UPLOAD_COOLDOWN_SECONDS - (now - last_upload_times[user_id]))
+            return error_response(
+                f"Please wait {remaining} second(s) before uploading another photo.",
+                429
+            )
 
-    last_upload_times[user_id] = now
+        last_upload_times[user_id] = now
 
-    # ── 2. Check File Part ────────────────────────────────────
-    if "file" not in request.files:
-        return error_response("No file part in the request. Use field name 'file'.", 400)
+        # ── 2. Check File Part ────────────────────────────────────
+        if "file" not in request.files:
+            return error_response("No file part in the request. Use field name 'file'.", 400)
 
-    file = request.files["file"]
+        file = request.files["file"]
 
-    # ── 3. Save File (Firebase / Local Fallback) ──────────────
-    url_or_path, err = save_profile_photo(user_id, file)
-    if err:
-        return error_response(err, 400)
+        # ── 3. Save File (Firebase / Local Fallback) ──────────────
+        url_or_path, err = save_profile_photo(user_id, file)
+        if err:
+            return error_response(err, 400)
 
-    # ── 4. Update Database User Document ──────────────────────
-    user_router = StorageRouter("users")
-    user_doc = user_router.get(user_id)
+        # ── 4. Update Database User Document ──────────────────────
+        user_router = StorageRouter("users")
+        user_doc = user_router.get(user_id)
 
-    if not user_doc:
-        # Create user document if it doesn't exist for some reason
-        user_doc = {
+        if not user_doc:
+            # Create user document if it doesn't exist for some reason
+            user_doc = {
+                "uid": user_id,
+                "email": g.user_email,
+                "display_name": g.token_payload.get("name", ""),
+                "role": g.user_role,
+            }
+            user_doc["profile_picture"] = url_or_path
+            user_doc["avatar_url"] = url_or_path
+            user_doc["profileImage"] = url_or_path
+            user_doc["profileImageUrl"] = url_or_path
+            user_doc["avatar"] = url_or_path
+            user_router.create(user_id, user_doc)
+        else:
+            user_doc["profile_picture"] = url_or_path
+            user_doc["avatar_url"] = url_or_path
+            user_doc["profileImage"] = url_or_path
+            user_doc["profileImageUrl"] = url_or_path
+            user_doc["avatar"] = url_or_path
+            user_router.update(user_id, {
+                "profile_picture": url_or_path,
+                "avatar_url": url_or_path,
+                "profileImage": url_or_path,
+                "profileImageUrl": url_or_path,
+                "avatar": url_or_path
+            })
+
+        # Return updated user details
+        user_data = {
             "uid": user_id,
-            "email": g.user_email,
-            "display_name": g.token_payload.get("name", ""),
-            "role": g.user_role,
-        }
-        user_doc["profile_picture"] = url_or_path
-        user_doc["avatar_url"] = url_or_path
-        user_doc["profileImage"] = url_or_path
-        user_doc["profileImageUrl"] = url_or_path
-        user_doc["avatar"] = url_or_path
-        user_router.create(user_id, user_doc)
-    else:
-        user_doc["profile_picture"] = url_or_path
-        user_doc["avatar_url"] = url_or_path
-        user_doc["profileImage"] = url_or_path
-        user_doc["profileImageUrl"] = url_or_path
-        user_doc["avatar"] = url_or_path
-        user_router.update(user_id, {
+            "email": user_doc.get("email", g.user_email),
+            "display_name": user_doc.get("display_name") or user_doc.get("name") or g.token_payload.get("name", ""),
+            "role": user_doc.get("role", g.user_role),
             "profile_picture": url_or_path,
             "avatar_url": url_or_path,
             "profileImage": url_or_path,
             "profileImageUrl": url_or_path,
             "avatar": url_or_path
-        })
+        }
 
-    # Return updated user details
-    user_data = {
-        "uid": user_id,
-        "email": user_doc.get("email", g.user_email),
-        "display_name": user_doc.get("display_name") or user_doc.get("name") or g.token_payload.get("name", ""),
-        "role": user_doc.get("role", g.user_role),
-        "profile_picture": url_or_path,
-        "avatar_url": url_or_path,
-        "profileImage": url_or_path,
-        "profileImageUrl": url_or_path,
-        "avatar": url_or_path
-    }
+        logger.info("Successfully updated profile photo for user %s to %s", user_id, url_or_path)
 
-    logger.info("Successfully updated profile photo for user %s to %s", user_id, url_or_path)
-
-    return jsonify({
-        "success": True,
-        "user": user_data,
-        "data": {
+        return jsonify({
+            "success": True,
             "user": user_data,
-            "profile_picture": url_or_path
-        },
-        "error": None
-    })
+            "data": {
+                "user": user_data,
+                "profile_picture": url_or_path
+            },
+            "error": None
+        })
+    except Exception as exc:
+        logger.exception("Unexpected error in upload_profile_photo: %s", exc)
+        return error_response(f"An unexpected error occurred during profile photo upload: {str(exc)}", 500)
 
 
 @profile_bp.get("/profile/photo/<user_id>")

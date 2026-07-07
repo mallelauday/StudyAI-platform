@@ -40,27 +40,43 @@ def upload_document():
     Returns:
         ``{ success, document_id, title, word_count, created_at }``
     """
-    logger.debug("[TRACE upload_document] Starting upload_document()")
-    logger.debug("[TRACE upload_document] request.method: %s", request.method)
-    logger.debug("[TRACE upload_document] request.content_type: %s", request.content_type)
-    logger.debug("[TRACE upload_document] request.content_length: %s", request.content_length)
-    logger.debug("[TRACE upload_document] request.files.keys(): %s", list(request.files.keys()))
-    logger.debug("[TRACE upload_document] request.form.keys(): %s", list(request.form.keys()))
+    try:
+        logger.debug("[TRACE upload_document] Starting upload_document()")
+        logger.debug("[TRACE upload_document] request.method: %s", request.method)
+        logger.debug("[TRACE upload_document] request.content_type: %s", request.content_type)
+        logger.debug("[TRACE upload_document] request.content_length: %s", request.content_length)
+        logger.debug("[TRACE upload_document] request.files.keys(): %s", list(request.files.keys()))
+        logger.debug("[TRACE upload_document] request.form.keys(): %s", list(request.form.keys()))
 
-    user_id = g.user_id
+        user_id = g.user_id
 
-    # ── Branch A: Raw text ────────────────────────────────
-    if request.is_json:
-        logger.debug("[TRACE upload_document] Routing to raw text handler")
-        res = _handle_raw_text(user_id)
-        logger.debug("[TRACE upload_document] Raw text handler returned")
-        return res
+        # ── 1. Check if it's a multipart upload ───────────────
+        is_multipart = request.content_type and "multipart/form-data" in request.content_type
+        has_file = "file" in request.files
 
-    # ── Branch B: File upload ─────────────────────────────
-    logger.debug("[TRACE upload_document] Routing to file upload handler")
-    res = _handle_file_upload(user_id)
-    logger.debug("[TRACE upload_document] File upload handler returned")
-    return res
+        if has_file or is_multipart:
+            logger.debug("[TRACE upload_document] Routing to file upload handler")
+            res = _handle_file_upload(user_id)
+            logger.debug("[TRACE upload_document] File upload handler returned")
+            return res
+
+        # ── 2. Check if request.files is empty, process raw text ──
+        if not request.files:
+            # Check if it has JSON or json content type
+            is_json = request.is_json or (request.content_type and "application/json" in request.content_type)
+            if is_json:
+                logger.debug("[TRACE upload_document] Routing to raw text handler")
+                res = _handle_raw_text(user_id)
+                logger.debug("[TRACE upload_document] Raw text handler returned")
+                return res
+
+        # ── 3. Fallback / Invalid Request ─────────────────────
+        logger.warning("[TRACE upload_document] Request did not match file upload or raw text handler logic.")
+        return error_response("Invalid request. Provide a file with key 'file' or JSON with 'raw_text'.", 400)
+
+    except Exception as exc:
+        logger.exception("Unexpected exception in upload_document: %s", exc)
+        return error_response(f"An unexpected error occurred: {str(exc)}", 500)
 
 
 # ── GET /api/upload/<doc_id> — retrieve a document ───────

@@ -55,12 +55,22 @@ api.interceptors.request.use(
     console.log("API URL:", import.meta.env.VITE_API_URL);
     console.log("Request:", config.url, config.data || config.params || null);
     const token = tokenStore.getAccess();
-    if (token) {
-      config.headers["Authorization"] = `Bearer ${token}`;
+    if (token && config.headers) {
+      if (typeof config.headers.set === 'function') {
+        config.headers.set("Authorization", `Bearer ${token}`);
+      } else {
+        config.headers["Authorization"] = `Bearer ${token}`;
+      }
     }
     // Delete Content-Type for FormData requests to let the browser set it with the correct boundary
     if (config.data instanceof FormData && config.headers) {
+      if (typeof config.headers.delete === 'function') {
+        config.headers.delete("Content-Type");
+        config.headers.delete("content-type");
+      }
       delete config.headers["Content-Type"];
+      delete config.headers["content-type"];
+      config.headers["Content-Type"] = undefined;
     }
     return config;
   },
@@ -208,8 +218,10 @@ export const buildRequestConfig = (url, method, payload, cancelToken, overrides 
 
   if (isFormData) {
     config.data = payload;
-    config.headers = { ...config.headers };
-    delete config.headers["Content-Type"];
+    config.headers = {
+      ...config.headers,
+      "Content-Type": undefined,
+    };
   } else if (payload) {
     if (isGetLike) {
       config.params = payload;
