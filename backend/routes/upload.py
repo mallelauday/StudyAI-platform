@@ -161,26 +161,51 @@ def _handle_file_upload(user_id: str):
         logger.error("File save failed: %s", exc)
         return error_response("Failed to save file. Please try again.", 500)
 
-    # Extract text
-    try:
-        parsed = parse_file(str(filepath))
-    except (ValueError, FileNotFoundError) as exc:
-        filepath.unlink(missing_ok=True)
-        return error_response(f"File parsing failed: {exc}", 422)
-    except Exception as exc:
-        filepath.unlink(missing_ok=True)
-        logger.exception("Unexpected parse error")
-        return error_response(f"Unexpected error during file parsing: {exc}", 500)
-
-    parsed["filename"] = stored_filename
-    parsed["original_name"] = original_name
-    parsed["filepath"] = str(filepath)
-    parsed["size_bytes"] = size_bytes
-
     tags_raw = request.form.get("tags", "")
     tags = [t.strip() for t in tags_raw.split(",") if t.strip()]
 
-    return _save_and_respond(parsed, user_id, tags, filepath=str(filepath), size_bytes=size_bytes, doc_id=doc_id)
+    # Create a placeholder document
+    material = StudyMaterial(
+        id=doc_id,
+        user_id=user_id,
+        title=original_name,
+        filename=stored_filename,
+        original_name=original_name,
+        filepath=str(filepath),
+        extension=ext,
+        content="",
+        word_count=0,
+        char_count=0,
+        page_count=0,
+        size_bytes=size_bytes,
+        tags=tags,
+        status="processing",
+    )
+
+    router = StorageRouter("materials")
+    router.create(doc_id, material.to_dict())
+
+    # Schedule background parsing
+    from services.background_worker import schedule_parsing
+    schedule_parsing(doc_id, str(filepath), user_id)
+
+    return success_response(
+        data={
+            "document_id": doc_id,
+            "title": material.title,
+            "word_count": material.word_count,
+            "char_count": material.char_count,
+            "page_count": material.page_count,
+            "extension": material.extension,
+            "size_bytes": size_bytes,
+            "tags": tags,
+            "preview": "",
+            "created_at": material.created_at,
+            "status": "processing",
+        },
+        message="File uploaded and processing started.",
+        status_code=202,
+    )
 
 
 def _save_and_respond(
