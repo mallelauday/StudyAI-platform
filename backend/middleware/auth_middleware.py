@@ -48,20 +48,23 @@ def login_required(f):
     """
     @wraps(f)
     def decorated(*args, **kwargs):
+        logger.debug("[TRACE login_required] Entering decorator for path: %s", request.path)
         token = extract_bearer_token(request)
 
         if not token:
+            logger.debug("[TRACE login_required] Rejecting: Authorization token missing.")
             return error_response("Authorization token missing.", 401)
 
         try:
             payload = decode_access_token(token)
         except TokenExpiredError:
+            logger.debug("[TRACE login_required] Rejecting: Access token has expired.")
             return error_response("Access token has expired.", 401)
         except InvalidTokenError as exc:
-            logger.warning("Invalid access token: %s", exc)
+            logger.warning("[TRACE login_required] Rejecting: Invalid access token: %s", exc)
             return error_response("Invalid access token.", 401)
         except Exception as exc:
-            logger.exception("Unexpected error in auth middleware: %s", exc)
+            logger.exception("[TRACE login_required] Rejecting: Unexpected auth error: %s", exc)
             return error_response("Authentication error.", 500)
 
         # Populate Flask g context
@@ -71,10 +74,12 @@ def login_required(f):
         g.token_payload = payload
 
         logger.debug(
-            "Authenticated: uid=%s role=%s path=%s",
-            g.user_id, g.user_role, request.path
+            "[TRACE login_required] Authentication success: uid=%s. Calling wrapped function.",
+            g.user_id
         )
-        return f(*args, **kwargs)
+        res = f(*args, **kwargs)
+        logger.debug("[TRACE login_required] Wrapped function call completed.")
+        return res
 
     return decorated
 

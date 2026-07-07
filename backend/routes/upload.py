@@ -40,14 +40,27 @@ def upload_document():
     Returns:
         ``{ success, document_id, title, word_count, created_at }``
     """
+    logger.debug("[TRACE upload_document] Starting upload_document()")
+    logger.debug("[TRACE upload_document] request.method: %s", request.method)
+    logger.debug("[TRACE upload_document] request.content_type: %s", request.content_type)
+    logger.debug("[TRACE upload_document] request.content_length: %s", request.content_length)
+    logger.debug("[TRACE upload_document] request.files.keys(): %s", list(request.files.keys()))
+    logger.debug("[TRACE upload_document] request.form.keys(): %s", list(request.form.keys()))
+
     user_id = g.user_id
 
     # ── Branch A: Raw text ────────────────────────────────
     if request.is_json:
-        return _handle_raw_text(user_id)
+        logger.debug("[TRACE upload_document] Routing to raw text handler")
+        res = _handle_raw_text(user_id)
+        logger.debug("[TRACE upload_document] Raw text handler returned")
+        return res
 
     # ── Branch B: File upload ─────────────────────────────
-    return _handle_file_upload(user_id)
+    logger.debug("[TRACE upload_document] Routing to file upload handler")
+    res = _handle_file_upload(user_id)
+    logger.debug("[TRACE upload_document] File upload handler returned")
+    return res
 
 
 # ── GET /api/upload/<doc_id> — retrieve a document ───────
@@ -89,6 +102,12 @@ def list_documents():
         data={"documents": materials, "count": len(materials)},
         message=f"Found {len(materials)} document(s).",
     )
+
+
+@upload_bp.get("/upload")
+@login_required
+def list_documents_stub():
+    pass
 
 
 @upload_bp.delete("/upload/<doc_id>")
@@ -133,14 +152,21 @@ def _handle_raw_text(user_id: str):
 
 def _handle_file_upload(user_id: str):
     """Process a multipart file upload."""
+    logger.debug("[TRACE _handle_file_upload] Starting _handle_file_upload() for user: %s", user_id)
+    logger.debug("[TRACE _handle_file_upload] request.files keys: %s", list(request.files.keys()))
     if "file" not in request.files:
+        logger.debug("[TRACE _handle_file_upload] No 'file' key in request.files. Keys present: %s", list(request.files.keys()))
         return error_response("No file part in the request. Use field name 'file'.", 400)
 
     file = request.files["file"]
+    logger.debug("[TRACE _handle_file_upload] File received: name=%s", file.filename)
 
     # Validate the file
+    logger.debug("[TRACE _handle_file_upload] Before validate_file_upload()")
     is_valid, err = validate_file_upload(file)
+    logger.debug("[TRACE _handle_file_upload] After validate_file_upload(): is_valid=%s, err=%s", is_valid, err)
     if not is_valid:
+        logger.debug("[TRACE _handle_file_upload] Validation failed: %s", err)
         return error_response(err, 400)
 
     # Generate a unique filename and save
@@ -154,15 +180,18 @@ def _handle_file_upload(user_id: str):
     user_upload_dir.mkdir(parents=True, exist_ok=True)
     filepath = user_upload_dir / stored_filename
 
+    logger.debug("[TRACE _handle_file_upload] Before file.save() to: %s", filepath)
     try:
         file.save(filepath)
         size_bytes = filepath.stat().st_size
+        logger.debug("[TRACE _handle_file_upload] After file.save() success. size=%d bytes", size_bytes)
     except OSError as exc:
-        logger.error("File save failed: %s", exc)
+        logger.error("[TRACE _handle_file_upload] File save failed: %s", exc)
         return error_response("Failed to save file. Please try again.", 500)
 
     tags_raw = request.form.get("tags", "")
     tags = [t.strip() for t in tags_raw.split(",") if t.strip()]
+    logger.debug("[TRACE _handle_file_upload] tags extracted: %s", tags)
 
     # Create a placeholder document
     material = StudyMaterial(
@@ -183,12 +212,25 @@ def _handle_file_upload(user_id: str):
     )
 
     router = StorageRouter("materials")
-    router.create(doc_id, material.to_dict())
+    logger.debug("[TRACE _handle_file_upload] Before StorageRouter.create() for doc_id: %s", doc_id)
+    try:
+        router.create(doc_id, material.to_dict())
+        logger.debug("[TRACE _handle_file_upload] StorageRouter.create() completed successfully")
+    except Exception as exc:
+        logger.error("[TRACE _handle_file_upload] StorageRouter.create() failed: %s", exc)
+        return error_response(f"Storage write failed: {exc}", 500)
 
     # Schedule background parsing
+    logger.debug("[TRACE _handle_file_upload] Before schedule_parsing()")
     from services.background_worker import schedule_parsing
-    schedule_parsing(doc_id, str(filepath), user_id)
+    try:
+        schedule_parsing(doc_id, str(filepath), user_id)
+        logger.debug("[TRACE _handle_file_upload] schedule_parsing() scheduled successfully")
+    except Exception as exc:
+        logger.error("[TRACE _handle_file_upload] schedule_parsing() scheduling failed: %s", exc)
+        return error_response(f"Scheduling failed: {exc}", 500)
 
+    logger.debug("[TRACE _handle_file_upload] Returning 202 Success response")
     return success_response(
         data={
             "document_id": doc_id,

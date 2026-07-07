@@ -204,7 +204,8 @@ export const buildRequestConfig = (url, method, payload, cancelToken, overrides 
 
   if (isFormData) {
     config.data = payload;
-    config.headers = { ...config.headers, "Content-Type": "multipart/form-data" };
+    config.headers = { ...config.headers };
+    delete config.headers["Content-Type"];
   } else if (payload) {
     if (isGetLike) {
       config.params = payload;

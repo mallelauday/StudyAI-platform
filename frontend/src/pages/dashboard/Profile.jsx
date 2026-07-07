@@ -80,9 +80,6 @@ export function Profile() {
 
     try {
       const res = await api.post('/profile/upload-photo', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round(
             (progressEvent.loaded * 100) / progressEvent.total

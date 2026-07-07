@@ -53,7 +53,7 @@ def fb_create(collection: str, doc_id: str, data: dict) -> dict | None:
     try:
         now = _ts()
         document = {**data, "id": doc_id, "created_at": now, "updated_at": now}
-        col.document(doc_id).set(document)
+        col.document(doc_id).set(document, timeout=5.0)
         logger.debug("FB create: %s/%s", collection, doc_id)
         return document
     except Exception as exc:
@@ -71,7 +71,7 @@ def fb_get(collection: str, doc_id: str) -> dict | None:
     if col is None:
         return None
     try:
-        doc = col.document(doc_id).get()
+        doc = col.document(doc_id).get(timeout=5.0)
         if doc.exists:
             return doc.to_dict()
         return None
@@ -90,7 +90,7 @@ def fb_get_all(collection: str, limit: int = 100) -> list[dict] | None:
     if col is None:
         return None
     try:
-        docs = col.limit(limit).stream()
+        docs = col.limit(limit).get(timeout=5.0)
         return [d.to_dict() for d in docs]
     except Exception as exc:
         logger.error("FB get_all failed [%s]: %s", collection, exc)
@@ -112,7 +112,7 @@ def fb_query(
     if col is None:
         return None
     try:
-        docs = col.where(field, "==", value).limit(limit).stream()
+        docs = col.where(field, "==", value).limit(limit).get(timeout=5.0)
         return [d.to_dict() for d in docs]
     except Exception as exc:
         logger.error("FB query failed [%s where %s=%s]: %s", collection, field, value, exc)
@@ -130,7 +130,7 @@ def fb_update(collection: str, doc_id: str, data: dict) -> dict | None:
         return None
     try:
         update_data = {**data, "updated_at": _ts()}
-        col.document(doc_id).update(update_data)
+        col.document(doc_id).update(update_data, timeout=5.0)
         logger.debug("FB update: %s/%s", collection, doc_id)
         return update_data
     except Exception as exc:
@@ -148,7 +148,7 @@ def fb_delete(collection: str, doc_id: str) -> bool:
     if col is None:
         return False
     try:
-        col.document(doc_id).delete()
+        col.document(doc_id).delete(timeout=5.0)
         logger.debug("FB delete: %s/%s", collection, doc_id)
         return True
     except Exception as exc:
@@ -167,7 +167,8 @@ def fb_count(collection: str) -> int | None:
     if col is None:
         return None
     try:
-        return sum(1 for _ in col.stream())
+        docs = col.get(timeout=5.0)
+        return len(docs)
     except Exception as exc:
         logger.error("FB count failed [%s]: %s", collection, exc)
         return None
