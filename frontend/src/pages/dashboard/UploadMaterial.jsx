@@ -103,7 +103,17 @@ export function UploadMaterial() {
       setStatus('complete');
       await fetchDocuments(); // refresh the list
     } catch (err) {
-      const msg = err.response?.data?.error || err.response?.data?.message || err.message || (err.request ? 'Server unreachable. Make sure the backend is running.' : 'Upload failed.');
+      console.error("[UploadMaterial] Upload failed detailed logs:", {
+        requestUrl: err.config?.url,
+        requestHeaders: err.config?.headers,
+        responseStatus: err.response?.status,
+        responseBody: err.response?.data,
+        axiosErrorCode: err.code,
+        errorResponse: err.response,
+        errorRequest: err.request,
+      });
+
+      const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Upload failed.';
       setUploadError(msg);
       setStatus('error');
     }

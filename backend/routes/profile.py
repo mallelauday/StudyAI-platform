@@ -63,6 +63,17 @@ def upload_profile_photo():
         if err:
             return error_response(err, 400)
 
+        # Sanitize localhost/127.0.0.1 URLs to relative paths
+        if url_or_path and ("127.0.0.1" in url_or_path or "localhost" in url_or_path):
+            from urllib.parse import urlparse
+            try:
+                parsed = urlparse(url_or_path)
+                url_or_path = parsed.path
+                if parsed.query:
+                    url_or_path += f"?{parsed.query}"
+            except Exception:
+                pass
+
         # ── 4. Update Database User Document ──────────────────────
         user_router = StorageRouter("users")
         user_doc = user_router.get(user_id)

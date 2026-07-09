@@ -40,6 +40,18 @@ class User:
         d["user_id"] = self.uid
         d["name"] = self.display_name
         pic = self.profile_picture or self.avatar_url
+        
+        # Sanitize localhost/127.0.0.1 URLs to relative paths
+        if pic and ("127.0.0.1" in pic or "localhost" in pic):
+            from urllib.parse import urlparse
+            try:
+                parsed = urlparse(pic)
+                pic = parsed.path
+                if parsed.query:
+                    pic += f"?{parsed.query}"
+            except Exception:
+                pass
+
         d["profile_picture"] = pic
         d["avatar_url"] = pic
         d["profileImage"] = pic
@@ -63,6 +75,17 @@ class User:
             or ""
         )
         
+        # Sanitize localhost/127.0.0.1 URLs to relative paths
+        if pic and ("127.0.0.1" in pic or "localhost" in pic):
+            from urllib.parse import urlparse
+            try:
+                parsed = urlparse(pic)
+                pic = parsed.path
+                if parsed.query:
+                    pic += f"?{parsed.query}"
+            except Exception:
+                pass
+
         return cls(
             uid=uid,
             email=data.get("email", ""),

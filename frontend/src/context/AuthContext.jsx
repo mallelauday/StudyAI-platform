@@ -82,10 +82,30 @@ function claimsFromToken(token) {
 function resolvePhotoUrl(photoUrl) {
   if (!photoUrl) return "";
   let resolved = photoUrl;
-  if (photoUrl.startsWith("/api/")) {
+
+  // Clean up any localhost or 127.0.0.1 references if present
+  if (resolved.includes("127.0.0.1") || resolved.includes("localhost")) {
+    try {
+      if (resolved.startsWith("http")) {
+        const urlObj = new URL(resolved);
+        resolved = urlObj.pathname + urlObj.search;
+      } else {
+        for (const badHost of ["http://127.0.0.1:5000", "http://localhost:5000", "127.0.0.1:5000", "localhost:5000"]) {
+          if (resolved.includes(badHost)) {
+            resolved = resolved.replace(badHost, "");
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[AuthContext] Failed to parse/clean photo URL:", e);
+    }
+  }
+
+  if (resolved.startsWith("/api/")) {
     const baseUrl = api.defaults.baseURL || "";
-    const baseWithoutApi = baseUrl.endsWith("/api") ? baseUrl.slice(0, -4) : baseUrl;
-    resolved = `${baseWithoutApi}${photoUrl}`;
+    const baseWithoutApi = baseUrl.endsWith("/api") ? baseUrl.slice(0, -4) : (baseUrl.endsWith("/api/") ? baseUrl.slice(0, -5) : baseUrl);
+    const base = baseWithoutApi.endsWith("/") ? baseWithoutApi.slice(0, -1) : baseWithoutApi;
+    resolved = `${base}${resolved}`;
   }
   if (resolved.includes("/profile/photo/")) {
     const separator = resolved.includes("?") ? "&" : "?";

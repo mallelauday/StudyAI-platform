@@ -25,7 +25,7 @@ export const api = axios.create({
     headers: {
         "Content-Type": "application/json",
     },
-    withCredentials: true,
+    withCredentials: false,
     timeout: 30000,
 });
 
@@ -70,7 +70,8 @@ api.interceptors.request.use(
       }
       delete config.headers["Content-Type"];
       delete config.headers["content-type"];
-      config.headers["Content-Type"] = undefined;
+      // Do NOT set Content-Type to undefined — that can produce a malformed header.
+      // The browser/XHR will set multipart/form-data with the correct boundary automatically.
     }
     return config;
   },
@@ -218,10 +219,15 @@ export const buildRequestConfig = (url, method, payload, cancelToken, overrides 
 
   if (isFormData) {
     config.data = payload;
-    config.headers = {
-      ...config.headers,
-      "Content-Type": undefined,
-    };
+    // Do NOT set or overwrite Content-Type. Let Axios and the request interceptor handle it by deleting any existing Content-Type.
+    if (config.headers) {
+      if (typeof config.headers.delete === 'function') {
+        config.headers.delete("Content-Type");
+        config.headers.delete("content-type");
+      }
+      delete config.headers["Content-Type"];
+      delete config.headers["content-type"];
+    }
   } else if (payload) {
     if (isGetLike) {
       config.params = payload;
